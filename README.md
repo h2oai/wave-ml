@@ -2,7 +2,7 @@
 
 ## API
 
-#### build_model()
+### build_model()
 
 ```python3
 def build_model(filename, target, metric = WaveModelMetric.AUTO, model_backend_type = None, **kwargs):
@@ -19,7 +19,7 @@ Builds a model. If `model_backend_type` not specified the function will determin
 Returns:
   A wave model.
 
-#### get_model()
+### get_model()
 
 ```python3
 def get_model(id_, model_type = None):
@@ -34,7 +34,7 @@ Get a model accessible on a backend.
 Returns:
     A wave model.
 
-#### save_model()
+### save_model()
 
 ```python3
 def save_model(backend, folder):
@@ -48,7 +48,7 @@ Save a model to disk.
 Returns:
     Path to a saved model.
 
-#### load_model()
+### load_model()
 
 ```python3
 def load_model(filename):
