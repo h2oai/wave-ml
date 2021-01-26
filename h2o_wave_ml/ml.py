@@ -72,7 +72,7 @@ class WaveModelBackend:
 
     def __init__(self, type_: WaveModelBackendType):
         self.type = type_
-        """A wave model backend type represented by `h2o_wave.ml.WaveModelBackendType` enum."""
+        """A wave model backend type represented by `h2o_wave_ml.WaveModelBackendType` enum."""
 
     def predict(self, inputs: DataSourceObj, **kwargs) -> List[Tuple]:
         """Predicts values based on inputs.
@@ -202,9 +202,9 @@ def build_model(filename: str, target: str, metric: WaveModelMetric = WaveModelM
     Args:
         filename: A string containing the filename to a dataset.
         target: A name of the target column.
-        metric: A metric to be used during the building process specified by `h2o_wave.ml.WaveModelMetric`.
+        metric: A metric to be used during the building process specified by `h2o_wave_ml.WaveModelMetric`.
                 It Defaults to AUTO.
-        model_backend_type: Optionally a backend model type specified by `h2o_wave.ml.WaveModelBackendType`.
+        model_backend_type: Optionally a backend model type specified by `h2o_wave_ml.WaveModelBackendType`.
         kwargs: Optional parameters passed to the backend.
     Returns:
         A wave model.
@@ -223,7 +223,7 @@ def get_model(id_: str, model_type: Optional[WaveModelBackendType] = None) -> Wa
 
     Args:
         id_: Identification of a model.
-        model_type: Optionally a model backend type specified by `h2o_wave.ml_WaveModelType`.
+        model_type: Optionally a model backend type specified by `h2o_wave_ml_WaveModelType`.
     Returns:
         A wave model.
     """
