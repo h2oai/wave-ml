@@ -1,6 +1,67 @@
 # Essential ML API for Wave
 
-## Development installation
+## API
+
+#### build_model()
+
+```python3
+def build_model(filename, target, metric = WaveModelMetric.AUTO, model_backend_type = None, **kwargs):
+```
+
+Builds a model. If `model_backend_type` not specified the function will determine correct backend based on a current environment.
+
+- `filename`A string containing the filename to a dataset.
+- `target`: A name of the target column.
+- `metric`: Optional metric to be used during the building process specified by `h2o_wave_ml.WaveModelMetric`.
+- `model_backend_type`: Optional backend model type specified by `h2o_wave_ml.WaveModelBackendType`.
+- `kwargs`: Optional parameters passed to the backend.
+
+Returns:
+  A wave model.
+
+#### get_model()
+
+```python3
+def get_model(id_, model_type = None):
+```
+
+Get a model accessible on a backend.
+
+
+- `id_`: Identification of a model.
+- `model_type`: Optional model backend type specified by `h2o_wave_ml_WaveModelType`.
+
+Returns:
+    A wave model.
+
+#### save_model()
+
+```python3
+def save_model(backend, folder):
+```
+
+Save a model to disk.
+
+- `backend`: A model backend produced by build_model.
+- `folder`: A directory where the saved model will be put to.
+
+Returns:
+    Path to a saved model.
+
+#### load_model()
+
+```python3
+def load_model(filename):
+```
+
+Load a model from disk into the instance.
+
+- `filename`: Path to saved model.
+
+Returns:
+    A wave model.
+
+## Development setup 
 
 1. Clone repo
 2. Type `make setup`
