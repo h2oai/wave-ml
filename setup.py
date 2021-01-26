@@ -19,7 +19,6 @@ setuptools.setup(
     ],
     python_requires='>=3.6.1',
     install_requires=[
-        'h2o-wave',
         'datatable==0.11.1',
         'h2o==3.32.0.2',
     ]
