@@ -2,7 +2,7 @@ import os.path
 import uuid
 from enum import Enum
 import tempfile
-from typing import Optional, Union, List, Tuple
+from typing import Optional, Union, List, Tuple, Any
 
 import datatable as dt
 import h2o
