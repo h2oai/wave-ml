@@ -1,6 +1,12 @@
 # Essential ML API for Wave
+The goal is to provide the API, as a part of Wave, that will enable several ML technologies to act as one. The goal is to hide the complexity of such technologies and provide a simple API.
+The API should facilitate model building, deploying, scoring and explaining.
 
-## API
+The API is designed to be runnable both on local and cloud environment and will use whatever resources available.
+
+**The API is under development and is not stable.**
+
+# API
 
 ### build_model()
 
@@ -40,7 +46,7 @@ Returns:
 def save_model(backend, folder):
 ```
 
-Save a model to disk.
+Save a model to disk. Works only for an `H2O 3` backend.
 
 - `backend`: A model backend produced by build_model.
 - `folder`: A directory where the saved model will be put to.
@@ -54,19 +60,29 @@ Returns:
 def load_model(filename):
 ```
 
-Load a model from disk into the instance.
+Load a model from disk into the instance. This will always return a model with an `H2O 3` backend.
 
 - `filename`: Path to saved model.
 
 Returns:
     A wave model.
+    
+# Environment variables
 
-## Development setup 
+The environment variables ensure the correct behaviour of a function calls behind the scenes. Based on a setup the API might spawn a new `H2O 3` instance or use existing `DAI` instance, use plain password to authenticate or utilize OpenID Connect, etc.
+
+Currently just one environment variable is available to set:
+
+- `H2O_WAVE_H2O3_URL`, if set the existing instance of `H2O 3` will be used instead of spawning a fresh one.
+
+# Development setup 
+
+A python of version `3.6.1` or greater is required.
 
 1. Clone repo
 2. Type `make setup`
 
-## Examples
+# Examples
 
 To build a model a dataset in `.csv` format is needed and target column needs to be specified:
 
