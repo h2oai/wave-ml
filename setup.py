@@ -8,7 +8,7 @@ setuptools.setup(
     version='0.1.0',
     author='Peter Szabo',
     author_email='peter.szabo@h2o.ai',
-    description='Machine Learning API for Wave',
+    description='AutoML for Wave Apps',
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/h2oai/wave-ml',
