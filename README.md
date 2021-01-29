@@ -93,7 +93,7 @@ A python of version `3.6.1` or greater is required.
 1. Clone repo
 2. Type `make setup`
 
-# Examples
+# Examples of use
 
 To build a model a dataset in `.csv` format is needed and target column needs to be specified:
 
@@ -135,7 +135,7 @@ model = load_model('./MyModel')
 predictions = model.predict('./Datasets/creditcard_test_cat.csv')
 ```
 
-The `.predict()` method call can take either the file path or python object with a raw data. Column names need to be specified omitting the target column. The example shows prediction on one row:
+A `.predict()` method call can take either the file path or python object with a raw data. Column names need to be specified omitting the target column. The example shows prediction on one row:
 
 ```python
 from h2o_wave.ml import load_model
