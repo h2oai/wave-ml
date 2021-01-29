@@ -1,10 +1,21 @@
-# Essential ML API for Wave
-The goal is to provide the API, as a part of Wave, that will enable several ML technologies to act as one. The goal is to hide the complexity of such technologies and provide a simple API.
-The API should facilitate model building, deploying, scoring and explaining.
+# Automatic Machine Learning (AutoML) for Wave Apps
 
-The API is designed to be runnable both on local and cloud environment and will use whatever resources available.
+This repository hosts Wave ML (`h2o-wave-ml`), a companion package for H2O Wave that makes it quick and easy to integrate AI/ML models into your applications.
+
+Wave ML provides a simple, high-level API for training, deploying, scoring and explaining machine learning models, letting you build predictive and decision-support applications entirely in Python.
+
+Wave ML runs on Linux, OSX, and Windows, and utilizes [H2O.ai's](https://h2o.ai) open-source [H2O](https://github.com/h2oai/h2o-3) and [AutoML](https://docs.h2o.ai/h2o/latest-stable/h2o-docs/automl.html) under the hood.
+
+When Wave apps are run in [H2O AI Hybrid Cloud](https://www.h2o.ai/hybrid-cloud/) with GPU support, Wave ML optionally switches over to [Driverless AI](https://www.h2o.ai/products/h2o-driverless-ai/) for automatic feature engineering, machine learning, model deployment, and monitoring.
+
+
+## Quickstart
 
 **The API is under development and is not stable.**
+
+(TODO: `pip install` instructions)
+
+(TODO: Show source code for a small, but complete, app that trains on, say, creditcard.csv, and displays a UI that let's you tweak a couple of fields and get predictions.)
 
 # API
 
