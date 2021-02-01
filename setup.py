@@ -5,7 +5,7 @@ with open('README.md', 'r') as fh:
 
 setuptools.setup(
     name='h2o_wave_ml',
-    version='0.1.0',
+    version='0.2.0',
     author='Peter Szabo',
     author_email='peter.szabo@h2o.ai',
     description='AutoML for Wave Apps',
