@@ -98,7 +98,7 @@ train_set = './creditcard_train.csv'
 model = build_model(train_set, target_column='DEFAULT_PAYMENT_NEXT_MONTH')
 ```
 
-Once the model is built we can make a predictions on training dataset:
+Once the model is built we can make a predictions on a training dataset:
 
 ```python
 from h2o_wave.ml import build_model
@@ -129,7 +129,7 @@ model = load_model('./MyModel')
 predictions = model.predict('./Datasets/creditcard_test_cat.csv')
 ```
 
-A `.predict()` method call can take either the file path or python object with a raw data. Column names need to be specified but without the target column. The example shows prediction on a one row:
+A `.predict()` method call takes either the file path or python object with a raw data. Column names need to be specified but without the target column. The example shows prediction on a one row:
 
 ```python
 from h2o_wave.ml import load_model
