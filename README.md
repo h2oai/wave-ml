@@ -92,7 +92,7 @@ A python of version `3.6.1` or greater is required.
 To build a model a dataset in `.csv` format is needed and target column needs to be specified:
 
 ```python
-from h2o_wave.ml import build_model
+from h2o_wave_ml import build_model
 
 train_set = './creditcard_train.csv'
 model = build_model(train_set, target_column='DEFAULT_PAYMENT_NEXT_MONTH')
@@ -101,7 +101,7 @@ model = build_model(train_set, target_column='DEFAULT_PAYMENT_NEXT_MONTH')
 Once the model is built we can make a predictions on a training dataset:
 
 ```python
-from h2o_wave.ml import build_model
+from h2o_wave_ml import build_model
 
 test_set = './creditcard_test.csv'
 train_set = './creditcard_train.csv'
@@ -113,17 +113,17 @@ predictions = model.predict(test_set)
 or store model onto disk. The resulting model file path is returned by the `save_model()` function call:
 
 ```python
-from h2o_wave.ml import build_model, save_model
+from h2o_wave_ml import build_model, save_model
 
 train_set = './creditcard_train.csv'
 model = build_model(train_set, target_column='DEFAULT_PAYMENT_NEXT_MONTH')
-path = save_model(model)
+path = save_model(model, output_folder='./')
 ```
 
 If model stored, we can load it up and make predictions:
 
 ```python
-from h2o_wave.ml import load_model
+from h2o_wave_ml import load_model
 
 model = load_model('./MyModel')
 predictions = model.predict('./Datasets/creditcard_test_cat.csv')
@@ -132,7 +132,7 @@ predictions = model.predict('./Datasets/creditcard_test_cat.csv')
 A `.predict()` method call takes either the file path or python object with a raw data. Column names need to be specified but without the target column. The example shows prediction on a one row:
 
 ```python
-from h2o_wave.ml import load_model
+from h2o_wave_ml import load_model
 
 data = [["ID", "LIMIT_BAL", "SEX"], [24001, 50000, "male"]]
 
