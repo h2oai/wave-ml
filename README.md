@@ -44,18 +44,17 @@ template = '''
 '''
 
 
-def compute_matrix(threshold: float):
-    y_pred = [p[1] < threshold for p in prediction]
-    return confusion_matrix(y_true, y_pred).ravel()
-
-
 @app('/demo')
 async def serve(q: Q):
 
     # Get a threshold value if available or 0.5 by default
     threshold = q.args.slider if 'slider' in q.args else 0.5
-    tn, fp, fn, tp = compute_matrix(threshold)
 
+    # Compute confusion matrix
+    y_pred = [p[1] < threshold for p in prediction]
+    tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
+
+    # Handle interaction
     if not q.client.initialized:  # First visit, create a card for the matrix
         q.page['matrix'] = ui.form_card(box='1 1 3 4', items=[
             ui.text(template.format(tn=tn, fp=fp, fn=fn, tp=tp)),
