@@ -58,7 +58,8 @@ async def serve(q: Q):
     if not q.client.initialized:  # First visit, create a card for the matrix
         q.page['matrix'] = ui.form_card(box='1 1 3 4', items=[
             ui.text(template.format(tn=tn, fp=fp, fn=fn, tp=tp)),
-            ui.slider(name='slider', label='Threshold', min=0, max=1, step=0.01, value=0.5, trigger=True),
+            ui.slider(name='slider', label='Threshold', min=0, max=1, step=0.01, value=0.5,
+                      trigger=True),
         ])
         q.client.initialized = True
     else:
