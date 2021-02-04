@@ -199,3 +199,7 @@ data = [["ID", "LIMIT_BAL", "SEX"], [24001, 50000, "male"]]
 model = load_model('./MyModel')
 predictions = model.predict(data)
 ```
+
+## License
+
+H2O Wave ML is licensed under the Apache License 2.0. See [LICENSE](LICENSE) for more information.
