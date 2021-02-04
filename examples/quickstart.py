@@ -2,15 +2,17 @@
 Take a Titanic dataset, train a model and show a confusion matrix based on that model.
 """
 
-from h2o_wave import main, app, Q, ui
 import datatable as dt
-from sklearn.metrics import confusion_matrix
+from h2o_wave import main, app, Q, ui
 from h2o_wave_ml import build_model, save_model, load_model
+from sklearn.metrics import confusion_matrix
 
-dataset = './titanic.csv'
+dataset = '/Users/geomodular/Datasets/titanic.csv'
 target_column = 'Survived'
 
-model = build_model(dataset, target_column=target_column)
+# model = build_model(dataset, target_column=target_column)
+# save_model(model, './')
+model = load_model('./StackedEnsemble_BestOfFamily_AutoML_20210203_130443')
 prediction = model.predict(dataset)
 
 # Prepare the actual values from target_column
@@ -41,8 +43,7 @@ async def serve(q: Q):
     if not q.client.initialized:  # First visit, create a card for the matrix
         q.page['matrix'] = ui.form_card(box='1 1 3 4', items=[
             ui.text(template.format(tn=tn, fp=fp, fn=fn, tp=tp)),
-            ui.slider(name='slider', label='Threshold', min=0, max=1, step=0.01, value=0.5,
-                      trigger=True),
+            ui.slider(name='slider', label='Threshold', min=0, max=1, step=0.01, value=0.5, trigger=True),
         ])
         q.client.initialized = True
     else:

@@ -19,10 +19,10 @@ When Wave apps are run in [H2O AI Hybrid Cloud](https://www.h2o.ai/hybrid-cloud/
 Take a Titanic dataset, train a model and show a confusion matrix based on that model.
 """
 
-from h2o_wave import main, app, Q, ui
 import datatable as dt
-from sklearn.metrics import confusion_matrix
+from h2o_wave import main, app, Q, ui
 from h2o_wave_ml import build_model
+from sklearn.metrics import confusion_matrix
 
 dataset = './titanic.csv'
 target_column = 'Survived'
