@@ -15,7 +15,10 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     classifiers=[
         'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.6',
         'Operating System :: POSIX :: Linux',
+        'Intended Audience :: Developers',
+        'License :: OSI Approved :: Apache Software License',
     ],
     python_requires='>=3.6.1',
     install_requires=[

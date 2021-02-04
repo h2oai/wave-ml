@@ -9,11 +9,15 @@ setup: venv ## Setup a development environment
 venv:
 	$(PYTHON) -m venv venv
 	./venv/bin/python -m pip install -U pip
-	./venv/bin/python -m pip install wheel
+	./venv/bin/python -m pip install setuptools wheel
 	./venv/bin/python -m pip install --editable .
 
+.PHONY: purge
+purge: ## Purge previous build but keep `venv`
+	rm -rf build dist h2o_wave_ml.egg-info
+
 .PHONY: clean
-clean: ## Clean files produced by make
+clean: purge ## Clean all files produced by make
 	rm -rf venv
 
 .PHONY: release
