@@ -7,12 +7,10 @@ from h2o_wave import main, app, Q, ui
 from h2o_wave_ml import build_model, save_model, load_model
 from sklearn.metrics import confusion_matrix
 
-dataset = '/Users/geomodular/Datasets/titanic.csv'
+dataset = './titanic.csv'
 target_column = 'Survived'
 
-# model = build_model(dataset, target_column=target_column)
-# save_model(model, './')
-model = load_model('./StackedEnsemble_BestOfFamily_AutoML_20210203_130443')
+model = build_model(dataset, target_column=target_column)
 prediction = model.predict(dataset)
 
 # Prepare the actual values from target_column
