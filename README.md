@@ -12,6 +12,8 @@ When Wave apps are run in [H2O AI Hybrid Cloud](https://www.h2o.ai/hybrid-cloud/
 
 **The API is under development and is not stable.**
 
+![confusion matrix](assets/cm.gif)
+
 ```python
 """
 Take a Titanic dataset, train a model and show a confusion matrix based on that model.
