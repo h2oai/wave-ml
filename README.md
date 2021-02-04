@@ -14,7 +14,7 @@ When Wave apps are run in [H2O AI Hybrid Cloud](https://www.h2o.ai/hybrid-cloud/
 
 ```python
 """
-Take a titanic dataset, train a model and show a confusion matrix based on that model.
+Take a Titanic dataset, train a model and show a confusion matrix based on that model.
 """
 
 from h2o_wave import main, app, Q, ui
@@ -34,7 +34,7 @@ df = dt.fread(dataset)
 y_true = df[target_column].to_list()[0]
 
 template = '''
-## Confusion matrix for Titanic
+## Confusion Matrix for Titanic
 | | | |
 |:-:|:-:|:-:|
 | | Survived | Not survived |
