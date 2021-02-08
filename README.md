@@ -16,7 +16,7 @@ The package can be installed using `pip`:
 pip install h2o-wave-ml
 ```
 
-or along with Wave:
+or along with H2O Wave:
 
 ```shell script
 pip install h2o-wave[ml]
