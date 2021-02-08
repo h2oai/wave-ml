@@ -10,6 +10,18 @@ When Wave apps are run in [H2O AI Hybrid Cloud](https://www.h2o.ai/hybrid-cloud/
 
 ## Quickstart
 
+The package can be installed using `pip`:
+
+```shell script
+pip install h2o-wave-ml
+```
+
+or along with Wave:
+
+```shell script
+pip install h2o-wave[ml]
+```
+
 <kbd><img src="assets/cm.gif" alt="confusion matrix"></kbd>
 
 ```python
