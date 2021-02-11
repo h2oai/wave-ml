@@ -189,7 +189,7 @@ from h2o_wave_ml import build_model, save_model
 
 train_set = './creditcard_train.csv'
 model = build_model(train_set, target_column='DEFAULT_PAYMENT_NEXT_MONTH')
-path = save_model(model, output_folder='./')
+path = save_model(model, output_dir_path='./')
 ```
 
 If model stored, we can load it up and make predictions:
