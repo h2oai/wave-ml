@@ -36,10 +36,12 @@ class _Config:
 _config = _Config()
 
 
-ModelEngineType = Enum('ModelEngineType', 'H2O3 DAI')
+ModelType = Enum('ModelType', 'H2O3 DAI')
 ModelMetric = Enum('ModelMetric', 'AUTO AUC MSE RMSE MAE RMSLE DEVIANCE LOGLOSS AUCPR LIFT_TOP_GROUP'
                    'MISCLASSIFICATION MEAN_PER_CLASS_ERROR')
-DataSourceObj = Union[str, List[List]]
+
+# TODO consider not using this and not making it part of the public API (see comment below on improving predict() signature).
+DataSource = Union[str, List[List]]
 
 
 def _make_id() -> str:
@@ -51,15 +53,15 @@ def _make_id() -> str:
 class _DataSource:
     """Helper class represents a various data sources that can be lazily transformed into another data type."""
 
-    def __init__(self, data: DataSourceObj):
+    def __init__(self, data: DataSource):
         self._data = data
         self._h2o3_frame: Optional[h2o.H2OFrame] = None
 
     def _to_h2o3_frame(self) -> h2o.H2OFrame:
         if isinstance(self._data, str):
-            filepath = self._data
-            if os.path.exists(filepath):
-                return h2o.import_file(filepath)
+            file_path = self._data
+            if os.path.exists(file_path):
+                return h2o.import_file(file_path)
             else:
                 raise ValueError('file not found')
         elif isinstance(self._data, List):
@@ -73,7 +75,7 @@ class _DataSource:
         return self._h2o3_frame
 
     @property
-    def filepath(self) -> str:
+    def file_path(self) -> str:
         if isinstance(self._data, str):
             return self._data
         elif isinstance(self._data, List):
@@ -81,17 +83,21 @@ class _DataSource:
         raise ValueError('unknown data type')
 
 
-class ModelEngine:
-    """Represents a common interface for a model backend. It references DAI or H2O-3 under the hood."""
+class Model:
+    """Represents a predictive model."""
 
-    def __init__(self, type_: ModelEngineType):
+    def __init__(self, type_: ModelType):
         self.type = type_
         """A Wave model engine type represented."""
 
-    def predict(self, inputs: DataSourceObj, **kwargs) -> List[Tuple]:
-        """Predicts values based on inputs.
+    def predict(self, inputs: DataSource, **kwargs) -> List[Tuple]:
+        """Returns the model's predictions for the given input rows.
         Args:
-            inputs: A python obj or filename. A header needs to be specified for the python obj.
+            TODO naming is inconsistent with H2O model's .predict(). TODO explain data structure. "python obj" is not a useful description.
+
+            TODO **IMPORTANT** consider a design where it's explicit if you're passing a file_path or a frame reference (using two optional parameters instead of branching by type).
+
+            inputs:  A python obj or filename. A header needs to be specified for the python obj.
         Returns:
             A list of tuples representing predicted values.
         Examples:
@@ -105,7 +111,7 @@ class ModelEngine:
         raise NotImplementedError()
 
 
-class _H2O3ModelEngine(ModelEngine):
+class _H2O3Model(Model):
 
     INIT = False
     MAX_RUNTIME_SECS = 60 * 60
@@ -113,7 +119,7 @@ class _H2O3ModelEngine(ModelEngine):
     INT_TO_CAT_THRESHOLD = 50
 
     def __init__(self, model: H2OEstimator):
-        super().__init__(ModelEngineType.H2O3)
+        super().__init__(ModelType.H2O3)
         self.model = model
 
     @staticmethod
@@ -147,8 +153,12 @@ class _H2O3ModelEngine(ModelEngine):
         return False
 
     @classmethod
-    def build(cls, filepath: str, target_column: str, model_metric: ModelMetric, **aml_settings) -> ModelEngine:
-        """Builds an H2O-3 based model and returns it in a `ModelEngine` wrapper."""
+    def build(cls, file_path: str, target_column: str, model_metric: ModelMetric, **aml_settings) -> Model:
+        """Builds an H2O-3 based model.
+
+        TODO why does this need to be a public API if we already have a build_model?
+
+        """
 
         cls._ensure()
 
@@ -159,8 +169,8 @@ class _H2O3ModelEngine(ModelEngine):
                         stopping_metric=model_metric.name,
                         sort_metric=model_metric.name)
 
-        if os.path.exists(filepath):
-            frame = h2o.import_file(filepath)
+        if os.path.exists(file_path):
+            frame = h2o.import_file(file_path)
         else:
             raise ValueError('file not found')
 
@@ -175,26 +185,30 @@ class _H2O3ModelEngine(ModelEngine):
             frame[target_column] = frame[target_column].asfactor()
 
         aml.train(x=cols, y=target_column, training_frame=frame)
-        return _H2O3ModelEngine(aml.leader)
+        return _H2O3Model(aml.leader)
 
     @classmethod
-    def get(cls, id_: str) -> ModelEngine:
-        """Gets a model identified by an AutoML project id.
-        H2O-3 needs to be running standalone for this to work.
+    def get(cls, model_id: str) -> Model:
+        """Retrieves a remote model given its ID.
+        By default, this refers to the ID of the H2O-3 AutoML object.
+
+        TODO why does this need to be a public API if we already have a get_model?
 
         Args:
-            id_: Identification of the aml project on a running H2O-3 instance.
+            model_id: Identification of the aml project on a running H2O-3 instance.
         Returns:
             A Wave model.
         """
 
         cls._ensure()
 
-        aml = h2o.automl.get_automl(id_)
-        return _H2O3ModelEngine(aml.leader)
+        aml = h2o.automl.get_automl(model_id)
+        return _H2O3Model(aml.leader)
 
-    def predict(self, data: DataSourceObj, **kwargs) -> List[Tuple]:
-        """Predicts on a model."""
+    def predict(self, data: DataSource, **kwargs) -> List[Tuple]:
+        """Returns the model's predictions for the given input rows.
+        TODO Make signature consistent with base class.
+        """
 
         ds = _DataSource(data)
         input_frame = ds.h2o3_frame
@@ -207,72 +221,72 @@ class _H2O3ModelEngine(ModelEngine):
             return prediction.to_tuples()
 
 
-def build_model(filepath: str, target_column: str, model_metric: ModelMetric = ModelMetric.AUTO,
-                model_engine: Optional[ModelEngineType] = None, **kwargs) -> ModelEngine:
+def build_model(file_path: str, target_column: str, model_metric: ModelMetric = ModelMetric.AUTO,
+                model_type: Optional[ModelType] = None, **kwargs) -> Model:
     """Trains a model.
-    If `model_engine` not specified the function will determine correct backend based on a current environment.
+    If `model_type` is not specified, it is inferred from the current environment. Defaults to a H2O-3 model.
 
     Args:
-        filepath: The path to the training dataset.
-        target_column: A name of the target column.
+        file_path: The path to the training dataset.
+        target_column: The name of the target column (the column to be predicted).
         model_metric: Optional evaluation metric to be used during modeling, specified by `h2o_wave_ml.ModelMetric`.
-        model_engine: Optional modeling engine, specified by `h2o_wave_ml.ModelEngine`.
-        kwargs: Optional parameters passed to the modeling engine.
+        model_type: Optional model type, specified by `h2o_wave_ml.ModelType`.
+        kwargs: Optional parameters to be passed to the model builder.
     Returns:
         A Wave model.
     """
 
-    if model_engine is not None:
-        if model_engine == ModelEngineType.H2O3:
-            return _H2O3ModelEngine.build(filepath, target_column, model_metric, **kwargs)
+    if model_type is not None:
+        if model_type == ModelType.H2O3:
+            return _H2O3Model.build(file_path, target_column, model_metric, **kwargs)
         raise NotImplementedError()
 
-    return _H2O3ModelEngine.build(filepath, target_column, model_metric, **kwargs)
+    return _H2O3Model.build(file_path, target_column, model_metric, **kwargs)
 
 
-def get_model(id_: str, model_engine: Optional[ModelEngineType] = None) -> ModelEngine:
-    """Gets a model that can be accessed on a backend.
+def get_model(model_id: str, model_type: Optional[ModelType] = None) -> Model:
+    """Retrieves a remote model using its ID.
 
     Args:
-        id_: Identification of a model.
-        model_engine: Optional modeling engine, specified by `h2o_wave_ml.ModelEngine`.
+        model_id: The unique ID of the model.
+        model_type: (Optional) The type of the model, specified by `h2o_wave_ml.ModelType`.
     Returns:
-        A Wave model.
+        The Wave model.
     """
 
-    if model_engine is not None:
-        if model_engine == ModelEngineType.H2O3:
-            return _H2O3ModelEngine.get(id_)
+    if model_type is not None:
+        if model_type == ModelType.H2O3:
+            return _H2O3Model.get(model_id)
         raise NotImplementedError()
 
-    return _H2O3ModelEngine.get(id_)
+    return _H2O3Model.get(model_id)
 
 
-def save_model(model_engine: ModelEngine, output_folder: str) -> str:
-    """Saves a model to disk.
+def save_model(model: Model, output_dir_path: str) -> str:
+    """Saves a model to the given location.
 
     Args:
-       model_engine: A model engine produced by `h2o_wave_ml.build_model`.
-       output_folder: A directory where the saved model will be put to.
+       model: The model produced by `h2o_wave_ml.build_model`.
+       output_dir_path: A directory where the model will be saved.
     Returns:
-        A path to a saved model.
+        The file path to the saved model.
     """
 
-    if isinstance(model_engine, _H2O3ModelEngine):
-        return h2o.download_model(model_engine.model, path=output_folder)
+    if isinstance(model, _H2O3Model):
+        return h2o.download_model(model.model, path=output_dir_path)
     raise NotImplementedError()
 
 
-def load_model(filepath: str) -> ModelEngine:
-    """Loads a model from disk into the instance.
+def load_model(file_path: str) -> Model:
+    """Loads a saved model from the given location.
 
     Args:
-        filepath: Path to a saved model.
+        file_path: Path to the saved model.
     Returns:
-        A Wave model.
+        The Wave model.
     """
 
-    _H2O3ModelEngine._ensure()
+    _H2O3Model._ensure()
 
-    model = h2o.upload_model(path=filepath)
-    return _H2O3ModelEngine(model)
+    model = h2o.upload_model(path=file_path)
+    return _H2O3Model(model)
