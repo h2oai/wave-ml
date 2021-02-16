@@ -11,7 +11,7 @@ dataset = './titanic.csv'
 target_column = 'Survived'
 
 model = build_model(dataset, target_column=target_column)
-prediction = model.predict(dataset)
+prediction = model.predict(file_path=dataset)
 
 # Prepare the actual values from target_column
 df = dt.fread(dataset)
@@ -26,6 +26,7 @@ template = '''
 | Not survived | {fn} (FN) | **{tn}** |
 <br><br>
 '''
+
 
 @app('/demo')
 async def serve(q: Q):

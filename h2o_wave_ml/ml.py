@@ -16,7 +16,7 @@ import os.path
 import uuid
 from enum import Enum
 import tempfile
-from typing import Optional, Union, List, Tuple, Any
+from typing import Optional, List, Tuple, Any
 
 import datatable as dt
 import h2o
@@ -40,47 +40,11 @@ ModelType = Enum('ModelType', 'H2O3 DAI')
 ModelMetric = Enum('ModelMetric', 'AUTO AUC MSE RMSE MAE RMSLE DEVIANCE LOGLOSS AUCPR LIFT_TOP_GROUP'
                    'MISCLASSIFICATION MEAN_PER_CLASS_ERROR')
 
-# TODO consider not using this and not making it part of the public API (see comment below on improving predict() signature).
-DataSource = Union[str, List[List]]
-
 
 def _make_id() -> str:
     """Generates a random id."""
 
     return str(uuid.uuid4())
-
-
-class _DataSource:
-    """Helper class represents a various data sources that can be lazily transformed into another data type."""
-
-    def __init__(self, data: DataSource):
-        self._data = data
-        self._h2o3_frame: Optional[h2o.H2OFrame] = None
-
-    def _to_h2o3_frame(self) -> h2o.H2OFrame:
-        if isinstance(self._data, str):
-            file_path = self._data
-            if os.path.exists(file_path):
-                return h2o.import_file(file_path)
-            else:
-                raise ValueError('file not found')
-        elif isinstance(self._data, List):
-            return h2o.H2OFrame(python_obj=self._data, header=1)
-        raise ValueError('unknown data type')
-
-    @property
-    def h2o3_frame(self) -> h2o.H2OFrame:
-        if self._h2o3_frame is None:
-            self._h2o3_frame = self._to_h2o3_frame()
-        return self._h2o3_frame
-
-    @property
-    def file_path(self) -> str:
-        if isinstance(self._data, str):
-            return self._data
-        elif isinstance(self._data, List):
-            raise NotImplementedError()
-        raise ValueError('unknown data type')
 
 
 class Model:
@@ -90,14 +54,12 @@ class Model:
         self.type = type_
         """A Wave model engine type represented."""
 
-    def predict(self, inputs: DataSource, **kwargs) -> List[Tuple]:
+    def predict(self, data: Optional[List[List]] = None, file_path: Optional[str] = None, **kwargs) -> List[Tuple]:
         """Returns the model's predictions for the given input rows.
+
         Args:
-            TODO naming is inconsistent with H2O model's .predict(). TODO explain data structure. "python obj" is not a useful description.
-
-            TODO **IMPORTANT** consider a design where it's explicit if you're passing a file_path or a frame reference (using two optional parameters instead of branching by type).
-
-            inputs:  A python obj or filename. A header needs to be specified for the python obj.
+            data: A list of rows of column values. First row has to contain the column headers.
+            file_path: The file path to the dataset.
         Returns:
             A list of tuples representing predicted values.
         Examples:
@@ -121,6 +83,17 @@ class _H2O3Model(Model):
     def __init__(self, model: H2OEstimator):
         super().__init__(ModelType.H2O3)
         self.model = model
+
+    @staticmethod
+    def _create_h2o3_frame(data: Optional[List[List]] = None, file_path: Optional[str] = None) -> h2o.H2OFrame:
+        if data is not None:
+            return h2o.H2OFrame(python_obj=data, header=1)
+        elif file_path is not None:
+            if os.path.exists(file_path):
+                return h2o.import_file(file_path)
+            else:
+                raise ValueError('file not found')
+        raise ValueError('no data input')
 
     @staticmethod
     def _make_project_id() -> str:
@@ -154,11 +127,7 @@ class _H2O3Model(Model):
 
     @classmethod
     def build(cls, file_path: str, target_column: str, model_metric: ModelMetric, **aml_settings) -> Model:
-        """Builds an H2O-3 based model.
-
-        TODO why does this need to be a public API if we already have a build_model?
-
-        """
+        """Builds an H2O-3 based model."""
 
         cls._ensure()
 
@@ -192,8 +161,6 @@ class _H2O3Model(Model):
         """Retrieves a remote model given its ID.
         By default, this refers to the ID of the H2O-3 AutoML object.
 
-        TODO why does this need to be a public API if we already have a get_model?
-
         Args:
             model_id: Identification of the aml project on a running H2O-3 instance.
         Returns:
@@ -205,19 +172,16 @@ class _H2O3Model(Model):
         aml = h2o.automl.get_automl(model_id)
         return _H2O3Model(aml.leader)
 
-    def predict(self, data: DataSource, **kwargs) -> List[Tuple]:
-        """Returns the model's predictions for the given input rows.
-        TODO Make signature consistent with base class.
-        """
+    def predict(self, data: Optional[List[List]] = None, file_path: Optional[str] = None, **kwargs) -> List[Tuple]:
+        """Returns the model's predictions for the given input rows."""
 
-        ds = _DataSource(data)
-        input_frame = ds.h2o3_frame
+        input_frame = self._create_h2o3_frame(data, file_path)
         output_frame = self.model.predict(input_frame)
 
         with tempfile.TemporaryDirectory() as tmp_dir_name:
-            filepath = os.path.join(tmp_dir_name, _make_id() + '.csv')
-            h2o.download_csv(output_frame, filepath)
-            prediction = dt.fread(filepath)
+            tmp_file_path = os.path.join(tmp_dir_name, _make_id() + '.csv')
+            h2o.download_csv(output_frame, tmp_file_path)
+            prediction = dt.fread(tmp_file_path)
             return prediction.to_tuples()
 
 
