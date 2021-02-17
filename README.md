@@ -88,17 +88,19 @@ async def serve(q: Q):
 ### build_model()
 
 ```python3
-def build_model(filepath: str, target_column: str, model_metric: ModelMetric = ModelMetric.AUTO,
-                model_engine: Optional[ModelEngineType] = None, **kwargs) -> ModelEngine:
+def build_model(file_path: str, target_column: str, model_metric: ModelMetric = ModelMetric.AUTO,
+                model_type: Optional[ModelType] = None, **kwargs) -> Model:
 ```
 
-Trains a model. If `model_engine` not specified the function will determine correct backend based on a current environment.
+Trains a model.
 
-- `filepath`: The path to the training dataset.
-- `target_column`: A name of the target column.
+If `model_type` is not specified, it is inferred from the current environment. Defaults to a `H2O-3` model.
+
+- `file_path`: The path to the training dataset.
+- `target_column`: The name of the target column (the column to be predicted).
 - `model_metric`: Optional evaluation metric to be used during modeling, specified by `h2o_wave_ml.ModelMetric`.
-- `model_engine`: Optional modeling engine, specified by `h2o_wave_ml.ModelEngine`.
-- `kwargs`: Optional parameters passed to the modeling engine.
+- `model_type`: Optional model type, specified by `h2o_wave_ml.ModelType`.
+- `kwargs`: Optional parameters to be passed to the model builder.
 
 Returns:
     A Wave model.
@@ -106,51 +108,51 @@ Returns:
 ### get_model()
 
 ```python3
-def get_model(id_: str, model_engine: Optional[ModelEngineType] = None) -> ModelEngine:
+def get_model(model_id: str, model_type: Optional[ModelType] = None) -> Model:
 ```
 
-Gets a model that can be accessed on a backend.
+Retrieves a remote model using its ID.
 
-- `id_`: Identification of a model.
-- `model_engine`: Optional modeling engine, specified by `h2o_wave_ml.ModelEngine`.
+- `model_id`: The unique ID of the model.
+- `model_type`: (Optional) The type of the model, specified by `h2o_wave_ml.ModelType`.
 
 Returns:
-    A Wave model.
+    The Wave model.
 
 ### save_model()
 
 ```python3
-def save_model(model_engine: ModelEngine, output_folder: str) -> str:
+def save_model(model: Model, output_dir_path: str) -> str:
 ```
 
-Saves a model to disk.
+Saves a model to the given location.
 
-- `model_engine`: A model engine produced by `h2o_wave_ml.build_model`.
-- `output_folder`: A directory where the saved model will be put to.
+- `model`: The model produced by `h2o_wave_ml.build_model`.
+- `output_dir_path`: A directory where the model will be saved.
 
 Returns:
-    A path to a saved model.
+    The file path to the saved model.
 
 ### load_model()
 
 ```python3
-def load_model(filepath: str) -> ModelEngine:
+def load_model(file_path: str) -> Model:
 ```
 
-Loads a model from disk into the instance. This will always return a model with an `H2O 3` backend.
+Loads a saved model from the given location.
 
-- `filepath`: Path to a saved model.
+- `file_path`: Path to the saved model.
 
 Returns:
-    A Wave model.
+    The Wave model.
 
 ## Environment variables
 
-The environment variables ensure the correct behaviour of a function calls behind the scenes. Based on a setup the API might spawn a new `H2O 3` instance or use existing `DAI` instance, use plain password to authenticate or utilize OpenID Connect, etc.
+The environment variables ensure the correct behaviour of a function calls behind the scenes. Based on a setup the API might spawn a new `H2O-3` instance or use existing `DAI` instance, use plain password to authenticate or utilize OpenID Connect, etc.
 
 Currently just one environment variable is available to set:
 
-- `H2O_WAVE_ML_H2O3_URL`, if set the existing instance of `H2O 3` will be used instead of spawning a fresh one.
+- `H2O_WAVE_ML_H2O3_URL`, if set the existing instance of `H2O-3` will be used instead of spawning a fresh one.
 
 ## Development setup 
 
@@ -179,7 +181,7 @@ test_set = './creditcard_test.csv'
 train_set = './creditcard_train.csv'
 
 model = build_model(train_set, target_column='DEFAULT_PAYMENT_NEXT_MONTH')
-predictions = model.predict(test_set)
+predictions = model.predict(file_path=test_set)
 ```
 
 or store model onto disk. The resulting model file path is returned by the `save_model()` function call:
@@ -198,10 +200,10 @@ If model stored, we can load it up and make predictions:
 from h2o_wave_ml import load_model
 
 model = load_model('./MyModel')
-predictions = model.predict('./Datasets/creditcard_test_cat.csv')
+predictions = model.predict(file_path='./Datasets/creditcard_test_cat.csv')
 ```
 
-A `.predict()` method call takes either the file path or python object with a raw data. Column names need to be specified but without the target column. The example shows prediction on a one row:
+A `.predict()` method call takes either the file path or python object with a raw data. Column names need to be specified and target column omitted. The example shows prediction on a one row:
 
 ```python
 from h2o_wave_ml import load_model
