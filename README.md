@@ -104,6 +104,30 @@ If `model_type` is not specified, it is inferred from the current environment. D
 
 Returns:
     A Wave model.
+    
+    
+### model.predict()
+```python3
+class Model:
+    def predict(self, data: Optional[List[List]] = None, file_path: Optional[str] = None, **kwargs) -> List[Tuple]:
+```
+
+Returns the model's predictions for the given input rows. A file path or Python object can be passed.
+
+- `data`: A list of rows of column values. First row has to contain the column headers.
+- `file_path`: The file path to the dataset.
+
+Example:
+```python3
+>>> from h2o_wave_ml import build_model
+>>> model = build_model(...)
+>>> # Three rows and two columns:
+>>> model.predict([['ID', 'Letter'], [1, 'a'], [2, 'b'], [3, 'c']])
+[(16.6,), (17.8,), (18.9,)]
+```
+
+Returns:
+    A list of tuples representing predicted values.
 
 ### get_model()
 
@@ -160,59 +184,6 @@ A python of version `3.6.1` or greater is required.
 
 1. Clone repo
 2. Type `make setup`
-
-## Examples
-
-To build a model a dataset in `.csv` format is needed and target column needs to be specified:
-
-```python
-from h2o_wave_ml import build_model
-
-train_set = './creditcard_train.csv'
-model = build_model(train_set, target_column='DEFAULT_PAYMENT_NEXT_MONTH')
-```
-
-Once the model is built we can make a predictions on a training dataset:
-
-```python
-from h2o_wave_ml import build_model
-
-test_set = './creditcard_test.csv'
-train_set = './creditcard_train.csv'
-
-model = build_model(train_set, target_column='DEFAULT_PAYMENT_NEXT_MONTH')
-predictions = model.predict(file_path=test_set)
-```
-
-or store model onto disk. The resulting model file path is returned by the `save_model()` function call:
-
-```python
-from h2o_wave_ml import build_model, save_model
-
-train_set = './creditcard_train.csv'
-model = build_model(train_set, target_column='DEFAULT_PAYMENT_NEXT_MONTH')
-path = save_model(model, output_dir_path='./')
-```
-
-If model stored, we can load it up and make predictions:
-
-```python
-from h2o_wave_ml import load_model
-
-model = load_model('./MyModel')
-predictions = model.predict(file_path='./Datasets/creditcard_test_cat.csv')
-```
-
-A `.predict()` method call takes either the file path or python object with a raw data. Column names need to be specified and target column omitted. The example shows prediction on a one row:
-
-```python
-from h2o_wave_ml import load_model
-
-data = [["ID", "LIMIT_BAL", "SEX"], [24001, 50000, "male"]]
-
-model = load_model('./MyModel')
-predictions = model.predict(data)
-```
 
 ## License
 
