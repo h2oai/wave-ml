@@ -3,11 +3,11 @@ PYTHON     := python3
 
 .DEFAULT_GOAL := help
 
-.PHONY: setup
-setup: venv ## Setup a development environment
-
 venv:
 	$(PYTHON) -m venv venv
+
+.PHONY: setup
+setup: | venv ## Setup a development environment
 	./venv/bin/python -m pip install -U pip
 	./venv/bin/python -m pip install setuptools wheel
 	./venv/bin/python -m pip install --editable .
