@@ -1,6 +1,8 @@
 """
 Train on a Wine dataset and predict wine rating.
 https://www.kaggle.com/christopheiv/winemagdata130k
+
+Drop columns so just: country, points, price, province, region_q, variety and winery remains.
 """
 
 from random import choice, randrange
@@ -9,7 +11,7 @@ import datatable as dt
 from h2o_wave import main, app, Q, ui
 from h2o_wave_ml import build_model
 
-dataset = '/Users/geomodular/Datasets/winemag_edit.csv'
+dataset = './winemag_edit.csv'
 
 model = build_model(dataset, target_column='points')
 
