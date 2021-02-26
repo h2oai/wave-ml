@@ -7,45 +7,47 @@ from random import choice, randrange
 
 import datatable as dt
 from h2o_wave import main, app, Q, ui
-from h2o_wave_ml import build_model, save_model, load_model
+from h2o_wave_ml import build_model
 
 dataset = '/Users/geomodular/Datasets/winemag_edit.csv'
-target_column = 'points'
 
-# model = build_model(dataset, target_column=target_column)
-# save_model(model, './')
-model = load_model('./XGBoost_1_AutoML_20210225_134946')
+model = build_model(dataset, target_column='points')
 
 df = dt.fread(dataset)
 
+# Get a list of unique choices of particular column
 countries = dt.unique(df['country']).to_list()[0]
 provinces = dt.unique(df['province']).to_list()[0]
 regions = dt.unique(df['region_1']).to_list()[0]
-variety_ = dt.unique(df['variety']).to_list()[0]
+varieties = dt.unique(df['variety']).to_list()[0]
 wineries = dt.unique(df['winery']).to_list()[0]
 
+# Make a valid input for dropbox component used later, also filter blank values if any
 country_choices = [ui.choice(c, c) for c in countries if c]
 province_choices = [ui.choice(p, p) for p in provinces if p]
 region_choices = [ui.choice(r, r) for r in regions if r]
-variety_choices = [ui.choice(v, v) for v in variety_ if v]
+variety_choices = [ui.choice(v, v) for v in varieties if v]
 winery_choices = [ui.choice(w, w) for w in wineries if w]
-
-template = '''
-# <center>{rating} points</center>
-| | |
-| --- | ---  |
-| Country | {country} |
-| Province | {province} |
-| Region | {region} |
-| Variety | {variety} |
-| Winery | {winery} |
-| Price | ${price} |
-'''
 
 
 @app('/demo')
 async def serve(q: Q):
 
+    # Prepare feature values or use default ones
+    country = q.args.country if 'country' in q.args else choice(country_choices).name
+    price = float(q.args.price) if 'price' in q.args else randrange(4, 150)
+    province = q.args.province if 'province' in q.args else choice(province_choices).name
+    region = q.args.region if 'region' in q.args else choice(region_choices).name
+    variety = q.args.variety if 'variety' in q.args else choice(variety_choices).name
+    winery = q.args.winery if 'winery' in q.args else choice(winery_choices).name
+
+    # Prepare input data for prediction
+    input_data = [['country', 'price', 'province', 'region_1', 'variety', 'winery'],
+                  [country, price, province, region, variety, winery]]
+    rating = model.predict(input_data)
+    rating = rating[0][0]
+
+    # Initialize page with a layout
     if not q.client.initialized:
         q.page['header'] = ui.header_card(
             box='1 1 3 1',
@@ -54,39 +56,25 @@ async def serve(q: Q):
             icon='Wines',
             icon_color='$red',
         )
+        q.page['result'] = ui.wide_gauge_stat_card(
+            box='1 2 3 2',
+            title='Rating',
+            value=str(rating),
+            aux_value='points',
+            plot_color='$red',
+            progress=rating/100,
+        )
+        q.page['wine'] = ui.form_card(box='1 4 3 5', items=[
+            ui.dropdown(name='country', label='Country', value=country, trigger=True, choices=country_choices),
+            ui.dropdown(name='province', label='Province', value=province, trigger=True, choices=province_choices),
+            ui.dropdown(name='region', label='Region', value=region, trigger=True, choices=region_choices),
+            ui.dropdown(name='variety', label='Variety', value=variety, trigger=True, choices=variety_choices),
+            ui.dropdown(name='winery', label='Winery', value=winery, trigger=True, choices=winery_choices),
+            ui.slider(name='price', label='Price in $', min=4, max=150, step=1, value=price, trigger=True),
+        ])
         q.client.initialized = True
-
-    if q.args.rate:
-        country = q.args.country
-        price = q.args.price
-        province = q.args.province
-        region = q.args.region
-        variety = q.args.variety
-        winery = q.args.winery
-
-        input_data = [['country', 'price', 'province', 'region_1', 'variety', 'winery'],
-                      [country, float(price), province, region, variety, winery]]
-        rating = model.predict(input_data)
-        rating = rating[0][0]
-
-        q.page['wine'] = ui.form_card(box='1 2 3 6', items=[
-            ui.text(template.format(rating=rating, country=country, price=price, province=province, region=region,
-                                    variety=variety, winery=winery)),
-            ui.buttons([
-                ui.button(name='next', label='Next wine please', primary=True),
-            ], justify='end')
-        ])
     else:
-        q.page['wine'] = ui.form_card(box='1 2 3 6', items=[
-            ui.dropdown(name='country', label='Country', value=choice(country_choices).name, choices=country_choices),
-            ui.dropdown(name='province', label='Province', value=choice(province_choices).name, choices=province_choices),
-            ui.dropdown(name='region', label='Region', value=choice(region_choices).name, choices=region_choices),
-            ui.dropdown(name='variety', label='Variety', value=choice(variety_choices).name, choices=variety_choices),
-            ui.dropdown(name='winery', label='Winery', value=choice(winery_choices).name, choices=winery_choices),
-            ui.textbox(name='price', label='Price', value=str(randrange(1, 75)) + '.00', prefix='$'),
-            ui.buttons([
-                ui.button(name='rate', label='Rate', primary=True),
-            ], justify='end')
-        ])
+        q.page['result'].value = str(rating)
+        q.page['result'].progress = rating/100
 
     await q.page.save()
