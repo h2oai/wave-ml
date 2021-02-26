@@ -2,7 +2,7 @@
 Train on a Wine dataset and predict wine rating.
 https://www.kaggle.com/christopheiv/winemagdata130k
 
-Drop columns so just: country, points, price, province, region_q, variety and winery remains.
+Drop columns so just: country, points, price, province, region_1, variety and winery remains.
 """
 
 from random import choice, randrange
@@ -58,12 +58,12 @@ async def serve(q: Q):
             icon='Wines',
             icon_color='$red',
         )
-        q.page['result'] = ui.wide_gauge_stat_card(
+        q.page['result'] = ui.tall_gauge_stat_card(
             box='1 2 3 2',
-            title='Rating',
+            title='',
             value=str(rating),
             aux_value='points',
-            plot_color='$red',
+            plot_color='$red' if rating < 90 else '$green',
             progress=rating/100,
         )
         q.page['wine'] = ui.form_card(box='1 4 3 5', items=[
@@ -78,5 +78,6 @@ async def serve(q: Q):
     else:
         q.page['result'].value = str(rating)
         q.page['result'].progress = rating/100
+        q.page['result'].plot_color = '$red' if rating < 90 else '$green'
 
     await q.page.save()
