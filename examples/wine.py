@@ -17,14 +17,14 @@ model = build_model(dataset, target_column='points')
 
 df = dt.fread(dataset)
 
-# Get a list of unique choices of particular column
+# Get a list of unique values of a particular column
 countries = dt.unique(df['country']).to_list()[0]
 provinces = dt.unique(df['province']).to_list()[0]
 regions = dt.unique(df['region_1']).to_list()[0]
 varieties = dt.unique(df['variety']).to_list()[0]
 wineries = dt.unique(df['winery']).to_list()[0]
 
-# Make a valid input for dropbox component used later, also filter blank values if any
+# Make a valid inputs for dropbox components used later
 country_choices = [ui.choice(c, c) for c in countries if c]
 province_choices = [ui.choice(p, p) for p in provinces if p]
 region_choices = [ui.choice(r, r) for r in regions if r]
