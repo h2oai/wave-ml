@@ -43,25 +43,25 @@ async def serve(q: Q):
             ui.layout(
                 breakpoint='xs',
                 width='576px',
-                zones=[ui.zone('base')],
+                zones=[ui.zone('body')],
             )
         ])
         q.page['header'] = ui.header_card(
-            box='base',
+            box='body',
             title='Wine rating calculator',
             subtitle='Cheers!',
             icon='Wines',
             icon_color='$red',
         )
         q.page['result'] = ui.tall_gauge_stat_card(
-            box=ui.box('base', height='180px'),
+            box=ui.box('body', height='180px'),
             title='',
             value=str(rating),
             aux_value='points',
             plot_color='$red' if rating < 90 else '$green',
             progress=rating/100,
         )
-        q.page['wine'] = ui.form_card(box='base', items=[
+        q.page['wine'] = ui.form_card(box='body', items=[
             ui.dropdown(name='country', label='Country', value=country, trigger=True, choices=choices['country']),
             ui.dropdown(name='province', label='Province', value=province, trigger=True, choices=choices['province']),
             ui.dropdown(name='region', label='Region', value=region, trigger=True, choices=choices['region_1']),
