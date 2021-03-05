@@ -25,12 +25,13 @@ choices = {key: [ui.choice(str(item)) for item in columns[key] if item] for key 
 async def serve(q: Q):
 
     # Prepare feature values or use default ones
-    country = q.args.country or df[2, 'country']
-    price = float(q.args.price) if q.args.price else df[2, 'price']
-    province = q.args.province or df[2, 'province']
-    region = q.args.region or df[2, 'region_1']
-    variety = q.args.variety or df[2, 'variety']
-    winery = q.args.winery or df[2, 'winery']
+    default_row = 2
+    country = q.args.country or df[default_row, 'country']
+    price = float(q.args.price) if q.args.price else df[default_row, 'price']
+    province = q.args.province or df[default_row, 'province']
+    region = q.args.region or df[default_row, 'region_1']
+    variety = q.args.variety or df[default_row, 'variety']
+    winery = q.args.winery or df[default_row, 'winery']
 
     # Prepare input data and do the predictions
     input_data = [features, [country, price, province, region, variety, winery]]
