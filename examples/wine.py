@@ -20,18 +20,21 @@ features = ['country', 'price', 'province', 'region_1', 'variety', 'winery']
 columns = {f: dt.unique(df[f]).to_list()[0] for f in features}
 choices = {key: [ui.choice(str(item)) for item in columns[key] if item] for key in columns}
 
+# Extract a default row
+default_row = df[2, :].to_dict()
+default_value = {key: cols[0] for key, cols in default_row.items()}
+
 
 @app('/demo')
 async def serve(q: Q):
 
     # Prepare feature values or use default ones
-    default_row = 2
-    country = q.args.country or df[default_row, 'country']
-    price = float(q.args.price) if q.args.price else df[default_row, 'price']
-    province = q.args.province or df[default_row, 'province']
-    region = q.args.region or df[default_row, 'region_1']
-    variety = q.args.variety or df[default_row, 'variety']
-    winery = q.args.winery or df[default_row, 'winery']
+    country = q.args.country or default_value['country']
+    price = float(q.args.price) if q.args.price else default_value['price']
+    province = q.args.province or default_value['province']
+    region = q.args.region or default_value['region_1']
+    variety = q.args.variety or default_value['variety']
+    winery = q.args.winery or default_value['winery']
 
     # Prepare input data and do the predictions
     input_data = [features, [country, price, province, region, variety, winery]]
