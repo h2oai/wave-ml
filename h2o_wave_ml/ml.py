@@ -18,6 +18,7 @@ from enum import Enum
 import tempfile
 from typing import Optional, List, Tuple, Any
 
+import driverlessai
 import datatable as dt
 import h2o
 from h2o.automl import H2OAutoML
@@ -31,14 +32,18 @@ def _get_env(key: str, default: Any):
 class _Config:
     def __init__(self):
         self.h2o3_url = _get_env('H2O3_URL', '')
+        self.dai_address = _get_env('DAI_ADDRESS', '')
+        self.dai_username = _get_env('DAI_USERNAME', '')
+        self.dai_password = _get_env('DAI_PASSWORD', '')
 
 
 _config = _Config()
 
 
 ModelType = Enum('ModelType', 'H2O3 DAI')
-ModelMetric = Enum('ModelMetric', 'AUTO AUC MSE RMSE MAE RMSLE DEVIANCE LOGLOSS AUCPR LIFT_TOP_GROUP'
-                   'MISCLASSIFICATION MEAN_PER_CLASS_ERROR')
+ModelMetric = Enum('ModelMetric', 'AUTO AUC MSE RMSE MAE RMSLE DEVIANCE LOGLOSS AUCPR'
+                                  'LIFT_TOP_GROUP MISCLASSIFICATION MEAN_PER_CLASS_ERROR')
+TaskType = Enum('TaskType', 'CLASSIFICATION REGRESSION')
 
 
 def _make_id() -> str:
@@ -75,7 +80,8 @@ class Model:
 
 class _H2O3Model(Model):
 
-    INIT = False
+    _INIT = False
+
     MAX_RUNTIME_SECS = 60 * 60
     MAX_MODELS = 20
     INT_TO_CAT_THRESHOLD = 50
@@ -107,12 +113,12 @@ class _H2O3Model(Model):
     def _ensure(cls):
         """Initializes H2O-3 library."""
 
-        if not cls.INIT:
+        if not cls._INIT:
             if _config.h2o3_url != '':
                 h2o.init(url=_config.h2o3_url)
             else:
                 h2o.init()
-            cls.INIT = True
+            cls._INIT = True
 
     @classmethod
     def _is_classification_task(cls, frame: h2o.H2OFrame, target: str) -> bool:
@@ -126,14 +132,14 @@ class _H2O3Model(Model):
         return False
 
     @classmethod
-    def build(cls, file_path: str, target_column: str, model_metric: ModelMetric, **aml_settings) -> Model:
+    def build(cls, file_path: str, target_column: str, model_metric: ModelMetric, _task_type: TaskType, **kwargs) -> Model:
         """Builds an H2O-3 based model."""
 
         cls._ensure()
 
         id_ = cls._make_project_id()
-        aml = H2OAutoML(max_runtime_secs=aml_settings.get('max_runtime_secs', cls.MAX_RUNTIME_SECS),
-                        max_models=aml_settings.get('max_models', cls.MAX_MODELS),
+        aml = H2OAutoML(max_runtime_secs=kwargs.get('_h2o3_max_runtime_secs', cls.MAX_RUNTIME_SECS),
+                        max_models=kwargs.get('_h2o3_max_models', cls.MAX_MODELS),
                         project_name=id_,
                         stopping_metric=model_metric.name,
                         sort_metric=model_metric.name)
@@ -173,8 +179,6 @@ class _H2O3Model(Model):
         return _H2O3Model(aml.leader)
 
     def predict(self, data: Optional[List[List]] = None, file_path: Optional[str] = None, **kwargs) -> List[Tuple]:
-        """Returns the model's predictions for the given input rows."""
-
         input_frame = self._create_h2o3_frame(data, file_path)
         output_frame = self.model.predict(input_frame)
 
@@ -185,8 +189,95 @@ class _H2O3Model(Model):
             return prediction.to_tuples()
 
 
+class _DAIModel(Model):
+
+    _INSTANCE = None
+
+    def __init__(self, experiment):
+        super().__init__(ModelType.DAI)
+        self.experiment = experiment
+
+    @classmethod
+    def _get_instance(cls):
+        if cls._INSTANCE is None:
+            if _config.dai_address:
+                cls._INSTANCE = driverlessai.Client(address=_config.dai_address,
+                                                    username=_config.dai_username,
+                                                    password=_config.dai_password)
+            else:
+                raise RuntimeError('no backend service available')
+        return cls._INSTANCE
+
+    @staticmethod
+    def _determine_task_type(summary) -> str:
+        if summary.data_type in ('int', 'real'):
+            if summary.unique > 50:
+                return 'regression'
+        return 'classification'
+
+    @classmethod
+    def build(cls, file_path: str, target_column: str, model_metric: ModelMetric, _task_type: TaskType, **kwargs) -> Model:
+        """Builds DAI based model."""
+
+        dai = cls._get_instance()
+
+        dataset_id = _make_id()
+        dataset = dai.datasets.create(file_path, name=dataset_id)
+
+        try:
+            summary = dataset.column_summaries(columns=[target_column])[0]
+        except KeyError:
+            raise ValueError('no target column')
+
+        params = {
+            key.lstrip('_dai_'): kwargs[key]
+            for key in kwargs
+            if key in ('_dai_accuracy', '_dai_time', '_dai_interpretability')
+        }
+
+        if model_metric != ModelMetric.AUTO:
+            params['scorer'] = model_metric.name
+
+        ex = dai.experiments.create(
+            train_dataset=dataset,
+            target_column=target_column,
+            task=kwargs.get('_dai_task', cls._determine_task_type(summary)),
+            **params,
+        )
+
+        return _DAIModel(ex)
+
+    @classmethod
+    def get(cls, experiment_id: str) -> Model:
+        """Retrieves a remote model given its ID.
+        By default, this refers to the ID of the DAI experiment.
+
+        Args:
+            experiment_id: Identification of the DAI experiment on a running DAI instance.
+        Returns:
+            A Wave model.
+        """
+
+        dai = cls._get_instance()
+        return _DAIModel(dai.experiments.get(experiment_id))
+
+    def predict(self, data: Optional[List[List]] = None, file_path: Optional[str] = None, **_kwargs) -> List[Tuple]:
+        dai = self._get_instance()
+
+        # Handle conversion from data to dataset
+
+        dataset_id = _make_id()
+        dataset = dai.datasets.create(file_path, name=dataset_id)
+
+        prediction_obj = self.experiment.predict(dataset=dataset)
+        prediction_filename = prediction_obj.download(overwrite=True)
+
+        prediction = dt.fread(prediction_filename)
+        return prediction.to_tuples()
+
+
 def build_model(file_path: str, target_column: str, model_metric: ModelMetric = ModelMetric.AUTO,
-                model_type: Optional[ModelType] = None, **kwargs) -> Model:
+                task_type: Optional[TaskType] = None, model_type: Optional[ModelType] = None, **kwargs) -> Model:
     """Trains a model.
     If `model_type` is not specified, it is inferred from the current environment. Defaults to a H2O-3 model.
 
@@ -194,6 +285,7 @@ def build_model(file_path: str, target_column: str, model_metric: ModelMetric = 
         file_path: The path to the training dataset.
         target_column: The name of the target column (the column to be predicted).
         model_metric: Optional evaluation metric to be used during modeling, specified by `h2o_wave_ml.ModelMetric`.
+        task_type: Optional task type, specified by `h2o_wave_ml.TaskType`.
         model_type: Optional model type, specified by `h2o_wave_ml.ModelType`.
         kwargs: Optional parameters to be passed to the model builder.
     Returns:
@@ -202,10 +294,14 @@ def build_model(file_path: str, target_column: str, model_metric: ModelMetric = 
 
     if model_type is not None:
         if model_type == ModelType.H2O3:
-            return _H2O3Model.build(file_path, target_column, model_metric, **kwargs)
-        raise NotImplementedError()
+            return _H2O3Model.build(file_path, target_column, model_metric, task_type, **kwargs)
+        elif model_type == ModelType.DAI:
+            return _DAIModel.build(file_path, target_column, model_metric, task_type, **kwargs)
 
-    return _H2O3Model.build(file_path, target_column, model_metric, **kwargs)
+    if _config.dai_address:
+        return _DAIModel.build(file_path, target_column, model_metric, task_type, **kwargs)
+
+    return _H2O3Model.build(file_path, target_column, model_metric, task_type, **kwargs)
 
 
 def get_model(model_id: str, model_type: Optional[ModelType] = None) -> Model:
@@ -221,7 +317,11 @@ def get_model(model_id: str, model_type: Optional[ModelType] = None) -> Model:
     if model_type is not None:
         if model_type == ModelType.H2O3:
             return _H2O3Model.get(model_id)
-        raise NotImplementedError()
+        elif model_type == ModelType.DAI:
+            return _DAIModel.get(model_id)
+
+    if _config.dai_address:
+        return _DAIModel.get(model_id)
 
     return _H2O3Model.get(model_id)
 

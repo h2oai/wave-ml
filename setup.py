@@ -26,7 +26,7 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/h2oai/wave-ml',
-    packages=setuptools.find_packages(exclude=("examples",)),
+    packages=setuptools.find_packages(exclude=('examples',)),
     classifiers=[
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.6',
@@ -38,5 +38,6 @@ setuptools.setup(
     install_requires=[
         'datatable==0.11.1',
         'h2o==3.32.0.2',
+        'driverlessai',
     ]
 )
