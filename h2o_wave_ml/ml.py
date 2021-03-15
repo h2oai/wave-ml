@@ -16,7 +16,7 @@ import os.path
 import uuid
 from enum import Enum
 import tempfile
-from typing import Optional, List, Tuple, Any
+from typing import Dict, Optional, List, Tuple, Any
 
 import driverlessai
 import datatable as dt
@@ -164,14 +164,7 @@ class _H2O3Model(Model):
 
     @classmethod
     def get(cls, model_id: str) -> Model:
-        """Retrieves a remote model given its ID.
-        By default, this refers to the ID of the H2O-3 AutoML object.
-
-        Args:
-            model_id: Identification of the aml project on a running H2O-3 instance.
-        Returns:
-            A Wave model.
-        """
+        """Retrieves a remote model given its ID."""
 
         cls._ensure()
 
@@ -215,6 +208,13 @@ class _DAIModel(Model):
                 return 'regression'
         return 'classification'
 
+    @staticmethod
+    def _transpose(data: Optional[List[List]] = None) -> Dict[str, List]:
+        return {
+            name: [data[row_i][col_i] for row_i in range(1, len(data))]
+            for col_i, name in enumerate(data[0])
+        }
+
     @classmethod
     def build(cls, file_path: str, target_column: str, model_metric: ModelMetric, _task_type: TaskType, **kwargs) -> Model:
         """Builds DAI based model."""
@@ -249,31 +249,33 @@ class _DAIModel(Model):
 
     @classmethod
     def get(cls, experiment_id: str) -> Model:
-        """Retrieves a remote model given its ID.
-        By default, this refers to the ID of the DAI experiment.
-
-        Args:
-            experiment_id: Identification of the DAI experiment on a running DAI instance.
-        Returns:
-            A Wave model.
-        """
+        """Retrieves a remote model given its ID."""
 
         dai = cls._get_instance()
         return _DAIModel(dai.experiments.get(experiment_id))
 
     def predict(self, data: Optional[List[List]] = None, file_path: Optional[str] = None, **_kwargs) -> List[Tuple]:
         dai = self._get_instance()
-
-        # Handle conversion from data to dataset
-
         dataset_id = _make_id()
-        dataset = dai.datasets.create(file_path, name=dataset_id)
+
+        if data is not None:
+            df = dt.Frame(self._transpose(data))
+            with tempfile.TemporaryDirectory() as tmp_dir_name:
+                tmp_file_path = os.path.join(tmp_dir_name, _make_id() + '.csv')
+                df.to_csv(tmp_file_path, header=True)
+                dataset = dai.datasets.create(tmp_file_path, name=dataset_id)
+        elif file_path is not None:
+            dataset = dai.datasets.create(file_path, name=dataset_id)
+        else:
+            raise ValueError('no data input')
 
         prediction_obj = self.experiment.predict(dataset=dataset)
-        prediction_filename = prediction_obj.download(overwrite=True)
 
-        prediction = dt.fread(prediction_filename)
-        return prediction.to_tuples()
+        with tempfile.TemporaryDirectory() as tmp_dir_name:
+            tmp_file_path = os.path.join(tmp_dir_name, _make_id() + '.csv')
+            prediction_obj.download(dst_file=tmp_file_path)
+            prediction = dt.fread(tmp_file_path)
+            return prediction.to_tuples()
 
 
 def build_model(file_path: str, target_column: str, model_metric: ModelMetric = ModelMetric.AUTO,
