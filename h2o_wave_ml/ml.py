@@ -132,7 +132,8 @@ class _H2O3Model(Model):
         return False
 
     @classmethod
-    def build(cls, file_path: str, target_column: str, model_metric: ModelMetric, _task_type: TaskType, **kwargs) -> Model:
+    def build(cls, file_path: str, target_column: str, model_metric: ModelMetric, task_type: Optional[TaskType],
+              **kwargs) -> Model:
         """Builds an H2O-3 based model."""
 
         cls._ensure()
@@ -156,7 +157,10 @@ class _H2O3Model(Model):
         except ValueError:
             raise ValueError('no target column')
 
-        if cls._is_classification_task(frame, target_column):
+        if task_type is None:
+            if cls._is_classification_task(frame, target_column):
+                frame[target_column] = frame[target_column].asfactor()
+        elif task_type == TaskType.CLASSIFICATION:
             frame[target_column] = frame[target_column].asfactor()
 
         aml.train(x=cols, y=target_column, training_frame=frame)
@@ -216,7 +220,8 @@ class _DAIModel(Model):
         }
 
     @classmethod
-    def build(cls, file_path: str, target_column: str, model_metric: ModelMetric, _task_type: TaskType, **kwargs) -> Model:
+    def build(cls, file_path: str, target_column: str, model_metric: ModelMetric, task_type: Optional[TaskType],
+              **kwargs) -> Model:
         """Builds DAI based model."""
 
         dai = cls._get_instance()
@@ -235,13 +240,18 @@ class _DAIModel(Model):
             if key in ('_dai_accuracy', '_dai_time', '_dai_interpretability')
         }
 
+        if task_type is None:
+            task = cls._determine_task_type(summary)
+        else:
+            task = task_type.name.lower()
+
         if model_metric != ModelMetric.AUTO:
             params['scorer'] = model_metric.name
 
         ex = dai.experiments.create(
             train_dataset=dataset,
             target_column=target_column,
-            task=kwargs.get('_dai_task', cls._determine_task_type(summary)),
+            task=kwargs.get('_dai_task', task),
             **params,
         )
 
