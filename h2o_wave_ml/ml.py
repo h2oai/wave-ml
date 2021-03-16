@@ -52,6 +52,10 @@ def _make_id() -> str:
     return str(uuid.uuid4())
 
 
+def _remove_prefix(text: str, prefix: str) -> str:
+    return text[text.startswith(prefix) and len(prefix):]
+
+
 class Model:
     """Represents a predictive model."""
 
@@ -190,6 +194,8 @@ class _DAIModel(Model):
 
     _INSTANCE = None
 
+    INT_TO_CAT_THRESHOLD = 50
+
     def __init__(self, experiment):
         super().__init__(ModelType.DAI)
         self.experiment = experiment
@@ -205,10 +211,10 @@ class _DAIModel(Model):
                 raise RuntimeError('no backend service available')
         return cls._INSTANCE
 
-    @staticmethod
-    def _determine_task_type(summary) -> str:
+    @classmethod
+    def _determine_task_type(cls, summary) -> str:
         if summary.data_type in ('int', 'real'):
-            if summary.unique > 50:
+            if summary.unique > cls.INT_TO_CAT_THRESHOLD:
                 return 'regression'
         return 'classification'
 
@@ -235,7 +241,7 @@ class _DAIModel(Model):
             raise ValueError('no target column')
 
         params = {
-            key.lstrip('_dai_'): kwargs[key]
+            _remove_prefix(key, '_dai_'): kwargs[key]
             for key in kwargs
             if key in ('_dai_accuracy', '_dai_time', '_dai_interpretability')
         }
@@ -264,6 +270,34 @@ class _DAIModel(Model):
         dai = cls._get_instance()
         return _DAIModel(dai.experiments.get(experiment_id))
 
+    @staticmethod
+    def _extract_class(name: str) -> str:
+        """Extract a predicted class name from DAI column name.
+
+        Examples:
+            >>> _DAIModel._extract_class('target_column.class1')
+            'class1'
+        """
+
+        return name.split('.')[-1]
+
+    @classmethod
+    def _get_prediction_output(cls, f) -> List[Tuple]:
+        rows = f.to_tuples()
+        names = [cls._extract_class(name) for name in f.names]
+
+        ret = []
+        for row in rows:
+            max_value = row[0]
+            value_index = 0
+            for i, value in enumerate(row):
+                if value > max_value:
+                    max_value = value
+                    value_index = i
+            ret.append(tuple([names[value_index], *row]))
+
+        return ret
+
     def predict(self, data: Optional[List[List]] = None, file_path: Optional[str] = None, **_kwargs) -> List[Tuple]:
         dai = self._get_instance()
         dataset_id = _make_id()
@@ -285,7 +319,7 @@ class _DAIModel(Model):
             tmp_file_path = os.path.join(tmp_dir_name, _make_id() + '.csv')
             prediction_obj.download(dst_file=tmp_file_path)
             prediction = dt.fread(tmp_file_path)
-            return prediction.to_tuples()
+            return self._get_prediction_output(prediction)
 
 
 def build_model(file_path: str, target_column: str, model_metric: ModelMetric = ModelMetric.AUTO,
