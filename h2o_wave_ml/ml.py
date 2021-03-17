@@ -280,7 +280,7 @@ class _DAIModel(Model):
         ex = dai.experiments.create(
             train_dataset=dataset,
             target_column=target_column,
-            task=kwargs.get('_dai_task', task),
+            task=task,
             **params,
         )
 
