@@ -225,6 +225,29 @@ class _DAIModel(Model):
             for col_i, name in enumerate(data[0])
         }
 
+    @staticmethod
+    def _extract_class(name: str) -> str:
+        """Extract a predicted class name from DAI column name.
+
+        Examples:
+            >>> _DAIModel._extract_class('target_column.class1')
+            'class1'
+        """
+
+        return name.split('.')[-1]
+
+    @classmethod
+    def _get_prediction_output(cls, df: dt.frame) -> List[Tuple]:
+        names = [cls._extract_class(name) for name in df.names]
+
+        ret = []
+        for i in range(df.nrows):
+            row = df[i, :].to_tuples()[0]
+            index = row.index(max(row))
+            ret.append(tuple([names[index], *row]))
+
+        return ret
+
     @classmethod
     def build(cls, file_path: str, target_column: str, model_metric: ModelMetric, task_type: Optional[TaskType],
               **kwargs) -> Model:
@@ -269,29 +292,6 @@ class _DAIModel(Model):
 
         dai = cls._get_instance()
         return _DAIModel(dai.experiments.get(experiment_id))
-
-    @staticmethod
-    def _extract_class(name: str) -> str:
-        """Extract a predicted class name from DAI column name.
-
-        Examples:
-            >>> _DAIModel._extract_class('target_column.class1')
-            'class1'
-        """
-
-        return name.split('.')[-1]
-
-    @classmethod
-    def _get_prediction_output(cls, df: dt.frame) -> List[Tuple]:
-        names = [cls._extract_class(name) for name in df.names]
-
-        ret = []
-        for i in range(df.nrows):
-            row = df[i, :].to_tuples()[0]
-            index = row.index(max(row))
-            ret.append(tuple([names[index], *row]))
-
-        return ret
 
     def predict(self, data: Optional[List[List]] = None, file_path: Optional[str] = None, **_kwargs) -> List[Tuple]:
         dai = self._get_instance()
