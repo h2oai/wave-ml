@@ -36,7 +36,7 @@ setuptools.setup(
     ],
     python_requires='>=3.6.1',
     install_requires=[
-        'datatable==0.11.1',
+        'datatable',
         'h2o==3.32.0.2',
         'driverlessai',
     ]
