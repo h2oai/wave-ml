@@ -23,6 +23,8 @@ import datatable as dt
 import h2o
 from h2o.automl import H2OAutoML
 from h2o.estimators.estimator_base import H2OEstimator
+import h2osteam
+from h2osteam.clients import DriverlessClient
 
 
 def _get_env(key: str, default: Any):
@@ -35,6 +37,8 @@ class _Config:
         self.dai_address = _get_env('DAI_ADDRESS', '')
         self.dai_username = _get_env('DAI_USERNAME', '')
         self.dai_password = _get_env('DAI_PASSWORD', '')
+        self.steam_address = _get_env('STEAM_ADDRESS', '')
+        self.steam_refresh_token = _get_env('STEAM_REFRESH_TOKEN', '')
 
 
 _config = _Config()
@@ -207,6 +211,15 @@ class _DAIModel(Model):
                 cls._INSTANCE = driverlessai.Client(address=_config.dai_address,
                                                     username=_config.dai_username,
                                                     password=_config.dai_password)
+            elif _config.steam_address:
+                if _config.steam_refresh_token:
+                    h2osteam.login(url=_config.steam_address,
+                                   refresh_token=_config.steam_refresh_token,
+                                   verify_ssl=False)
+                    instance = DriverlessClient.get_instance(name='dai-cluster')
+                    cls._INSTANCE = instance.connect()
+                else:
+                    raise RuntimeError('no backend service available')
             else:
                 raise RuntimeError('no backend service available')
         return cls._INSTANCE
@@ -340,7 +353,7 @@ def build_model(file_path: str, target_column: str, model_metric: ModelMetric = 
         elif model_type == ModelType.DAI:
             return _DAIModel.build(file_path, target_column, model_metric, task_type, **kwargs)
 
-    if _config.dai_address:
+    if _config.dai_address or _config.steam_address:
         return _DAIModel.build(file_path, target_column, model_metric, task_type, **kwargs)
 
     return _H2O3Model.build(file_path, target_column, model_metric, task_type, **kwargs)
@@ -362,7 +375,7 @@ def get_model(model_id: str, model_type: Optional[ModelType] = None) -> Model:
         elif model_type == ModelType.DAI:
             return _DAIModel.get(model_id)
 
-    if _config.dai_address:
+    if _config.dai_address or _config.steam_address:
         return _DAIModel.get(model_id)
 
     return _H2O3Model.get(model_id)
