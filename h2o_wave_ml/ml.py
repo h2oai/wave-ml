@@ -219,7 +219,7 @@ class _DAIModel(Model):
         return 'classification'
 
     @staticmethod
-    def _transpose(data: Optional[List[List]] = None) -> Dict[str, List]:
+    def _transpose(data: List[List]) -> Dict[str, List]:
         return {
             name: [data[row_i][col_i] for row_i in range(1, len(data))]
             for col_i, name in enumerate(data[0])
@@ -309,6 +309,7 @@ class _DAIModel(Model):
             raise ValueError('no data input')
 
         prediction_obj = self.experiment.predict(dataset=dataset)
+        dataset.delete()
 
         with tempfile.TemporaryDirectory() as tmp_dir_name:
             tmp_file_path = os.path.join(tmp_dir_name, _make_id() + '.csv')
