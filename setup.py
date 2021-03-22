@@ -39,5 +39,6 @@ setuptools.setup(
         'datatable',
         'h2o==3.32.0.2',
         'driverlessai',
+        'h2osteam@https://enterprise-steam.s3.amazonaws.com/release/1.8.1/python/h2osteam-1.8.1-py2.py3-none-any.whl',
     ]
 )
