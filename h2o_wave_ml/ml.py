@@ -213,9 +213,7 @@ class _DAIModel(Model):
                                                     username=_config.dai_username,
                                                     password=_config.dai_password)
             elif _config.steam_address and _config.steam_refresh_token:
-                h2osteam.login(url=_config.steam_address,
-                               refresh_token=_config.steam_refresh_token,
-                               verify_ssl=False)
+                h2osteam.login(url=_config.steam_address, refresh_token=_config.steam_refresh_token)
                 instance = DriverlessClient.get_instance(name=_config.steam_instance_name)
                 if instance.status() == 'stopped':
                     raise RuntimeError('DAI instance is stopped')
