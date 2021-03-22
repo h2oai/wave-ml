@@ -39,6 +39,7 @@ class _Config:
         self.dai_password = _get_env('DAI_PASSWORD', '')
         self.steam_address = _get_env('STEAM_ADDRESS', '')
         self.steam_refresh_token = _get_env('STEAM_REFRESH_TOKEN', '')
+        self.steam_instance_name = _get_env('STEAM_INSTANCE_NAME', '')
 
 
 _config = _Config()
@@ -211,15 +212,14 @@ class _DAIModel(Model):
                 cls._INSTANCE = driverlessai.Client(address=_config.dai_address,
                                                     username=_config.dai_username,
                                                     password=_config.dai_password)
-            elif _config.steam_address:
-                if _config.steam_refresh_token:
-                    h2osteam.login(url=_config.steam_address,
-                                   refresh_token=_config.steam_refresh_token,
-                                   verify_ssl=False)
-                    instance = DriverlessClient.get_instance(name='dai-cluster')
-                    cls._INSTANCE = instance.connect()
-                else:
-                    raise RuntimeError('no backend service available')
+            elif _config.steam_address and _config.steam_refresh_token:
+                h2osteam.login(url=_config.steam_address,
+                               refresh_token=_config.steam_refresh_token,
+                               verify_ssl=False)
+                instance = DriverlessClient.get_instance(name=_config.steam_instance_name)
+                if instance.status() == 'stopped':
+                    raise RuntimeError('DAI instance is stopped')
+                cls._INSTANCE = instance.connect()
             else:
                 raise RuntimeError('no backend service available')
         return cls._INSTANCE
