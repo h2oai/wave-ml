@@ -329,7 +329,7 @@ class _DAIModel(Model):
             return self._get_prediction_output(prediction)
 
 
-def build_model(file_path: str, target_column: str, model_metric: ModelMetric = ModelMetric.AUTO,
+def build_model(file_path: str, *, target_column: str, model_metric: ModelMetric = ModelMetric.AUTO,
                 task_type: Optional[TaskType] = None, model_type: Optional[ModelType] = None, **kwargs) -> Model:
     """Trains a model.
     If `model_type` is not specified, it is inferred from the current environment. Defaults to a H2O-3 model.
@@ -357,7 +357,7 @@ def build_model(file_path: str, target_column: str, model_metric: ModelMetric = 
     return _H2O3Model.build(file_path, target_column, model_metric, task_type, **kwargs)
 
 
-def get_model(model_id: str, model_type: Optional[ModelType] = None) -> Model:
+def get_model(model_id: str, *, model_type: Optional[ModelType] = None) -> Model:
     """Retrieves a remote model using its ID.
 
     Args:
@@ -379,7 +379,7 @@ def get_model(model_id: str, model_type: Optional[ModelType] = None) -> Model:
     return _H2O3Model.get(model_id)
 
 
-def save_model(model: Model, output_dir_path: str) -> str:
+def save_model(model: Model, *, output_dir_path: str) -> str:
     """Saves a model to the given location.
 
     Args:
