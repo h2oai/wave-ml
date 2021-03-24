@@ -206,14 +206,20 @@ class _DAIModel(Model):
         self.experiment = experiment
 
     @classmethod
-    def _get_instance(cls):
+    def _get_instance(cls, access_token: str = ''):
         if cls._INSTANCE is None:
             if _config.dai_address:
                 cls._INSTANCE = driverlessai.Client(address=_config.dai_address,
                                                     username=_config.dai_username,
                                                     password=_config.dai_password)
-            elif _config.steam_address and _config.steam_refresh_token:
-                h2osteam.login(url=_config.steam_address, refresh_token=_config.steam_refresh_token)
+            elif _config.steam_address:
+                if access_token:
+                    h2osteam.login(url=_config.steam_address, access_token=access_token)
+                elif _config.steam_refresh_token:
+                    h2osteam.login(url=_config.steam_address, refresh_token=_config.steam_refresh_token)
+                else:
+                    raise RuntimeError('no Steam credentials')
+
                 instance = DriverlessClient.get_instance(name=_config.steam_instance_name)
                 if instance.status() == 'stopped':
                     raise RuntimeError('DAI instance is stopped')
@@ -261,10 +267,10 @@ class _DAIModel(Model):
 
     @classmethod
     def build(cls, file_path: str, target_column: str, model_metric: ModelMetric, task_type: Optional[TaskType],
-              **kwargs) -> Model:
+              access_token: str, **kwargs) -> Model:
         """Builds DAI based model."""
 
-        dai = cls._get_instance()
+        dai = cls._get_instance(access_token)
 
         dataset_id = _make_id()
         dataset = dai.datasets.create(file_path, name=dataset_id)
@@ -298,10 +304,10 @@ class _DAIModel(Model):
         return _DAIModel(ex)
 
     @classmethod
-    def get(cls, experiment_id: str) -> Model:
+    def get(cls, experiment_id: str, access_token: str) -> Model:
         """Retrieves a remote model given its ID."""
 
-        dai = cls._get_instance()
+        dai = cls._get_instance(access_token)
         return _DAIModel(dai.experiments.get(experiment_id))
 
     def predict(self, data: Optional[List[List]] = None, file_path: Optional[str] = None, **_kwargs) -> List[Tuple]:
@@ -330,7 +336,8 @@ class _DAIModel(Model):
 
 
 def build_model(file_path: str, *, target_column: str, model_metric: ModelMetric = ModelMetric.AUTO,
-                task_type: Optional[TaskType] = None, model_type: Optional[ModelType] = None, **kwargs) -> Model:
+                task_type: Optional[TaskType] = None, model_type: Optional[ModelType] = None,
+                access_token: str = '', **kwargs) -> Model:
     """Trains a model.
     If `model_type` is not specified, it is inferred from the current environment. Defaults to a H2O-3 model.
 
@@ -340,6 +347,7 @@ def build_model(file_path: str, *, target_column: str, model_metric: ModelMetric
         model_metric: Optional evaluation metric to be used during modeling, specified by `h2o_wave_ml.ModelMetric`.
         task_type: Optional task type, specified by `h2o_wave_ml.TaskType`.
         model_type: Optional model type, specified by `h2o_wave_ml.ModelType`.
+        access_token: Optional token if engine is provided by Steam.
         kwargs: Optional parameters to be passed to the model builder.
     Returns:
         A Wave model.
@@ -357,12 +365,13 @@ def build_model(file_path: str, *, target_column: str, model_metric: ModelMetric
     return _H2O3Model.build(file_path, target_column, model_metric, task_type, **kwargs)
 
 
-def get_model(model_id: str, *, model_type: Optional[ModelType] = None) -> Model:
+def get_model(model_id: str, *, model_type: Optional[ModelType] = None, access_token: str = '') -> Model:
     """Retrieves a remote model using its ID.
 
     Args:
         model_id: The unique ID of the model.
-        model_type: (Optional) The type of the model, specified by `h2o_wave_ml.ModelType`.
+        model_type: Optional type of the model, specified by `h2o_wave_ml.ModelType`.
+        access_token: Optional token if engine is provided by Steam.
     Returns:
         The Wave model.
     """
@@ -371,10 +380,10 @@ def get_model(model_id: str, *, model_type: Optional[ModelType] = None) -> Model
         if model_type == ModelType.H2O3:
             return _H2O3Model.get(model_id)
         elif model_type == ModelType.DAI:
-            return _DAIModel.get(model_id)
+            return _DAIModel.get(model_id, access_token)
 
     if _config.dai_address or _config.steam_address:
-        return _DAIModel.get(model_id)
+        return _DAIModel.get(model_id, access_token)
 
     return _H2O3Model.get(model_id)
 
