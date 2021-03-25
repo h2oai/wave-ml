@@ -347,7 +347,7 @@ def build_model(file_path: str, *, target_column: str, model_metric: ModelMetric
         model_metric: Optional evaluation metric to be used during modeling, specified by `h2o_wave_ml.ModelMetric`.
         task_type: Optional task type, specified by `h2o_wave_ml.TaskType`.
         model_type: Optional model type, specified by `h2o_wave_ml.ModelType`.
-        access_token: Optional token if engine is provided by Steam.
+        access_token: Optional token if engine needs to be authorized.
         kwargs: Optional parameters to be passed to the model builder.
     Returns:
         A Wave model.
@@ -357,10 +357,10 @@ def build_model(file_path: str, *, target_column: str, model_metric: ModelMetric
         if model_type == ModelType.H2O3:
             return _H2O3Model.build(file_path, target_column, model_metric, task_type, **kwargs)
         elif model_type == ModelType.DAI:
-            return _DAIModel.build(file_path, target_column, model_metric, task_type, **kwargs)
+            return _DAIModel.build(file_path, target_column, model_metric, task_type, access_token, **kwargs)
 
     if _config.dai_address or _config.steam_address:
-        return _DAIModel.build(file_path, target_column, model_metric, task_type, **kwargs)
+        return _DAIModel.build(file_path, target_column, model_metric, task_type, access_token, **kwargs)
 
     return _H2O3Model.build(file_path, target_column, model_metric, task_type, **kwargs)
 
