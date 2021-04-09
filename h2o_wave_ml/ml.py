@@ -26,7 +26,7 @@ import h2o
 from h2o.automl import H2OAutoML
 from h2o.estimators.estimator_base import H2OEstimator
 import h2osteam
-from h2osteam.clients import DriverlessClient
+from h2osteam.clients import DriverlessClient, MultinodeClient
 import mlops
 from _mlops.deployer import exceptions as ml_excp
 import requests
@@ -47,6 +47,7 @@ class _Config:
         self.steam_address = _get_env('ML_STEAM_ADDRESS')
         self.steam_refresh_token = _get_env('ML_STEAM_REFRESH_TOKEN')
         self.steam_instance_name = _get_env('ML_STEAM_INSTANCE_NAME')
+        self.steam_cluster_name = _get_env('ML_STEAM_CLUSTER_NAME')
         self.mlops_gateway = _get_env('ML_MLOPS_GATEWAY')
 
         # OIDC namespace.
@@ -239,9 +240,17 @@ class _DAIModel(Model):
                 else:
                     raise RuntimeError('no Steam credentials')
 
-                instance = DriverlessClient.get_instance(name=_config.steam_instance_name)
-                if instance.status() == 'stopped':
-                    raise RuntimeError('DAI instance is stopped')
+                if _config.steam_cluster_name:
+                    instance = MultinodeClient.get_cluster(name=_config.steam_cluster_name)
+                    if not instance.is_master_ready():
+                        raise RuntimeError('DAI master node not ready')
+                elif _config.steam_instance_name:
+                    instance = DriverlessClient.get_instance(name=_config.steam_instance_name)
+                    if instance.status() == 'stopped':
+                        raise RuntimeError('DAI instance not ready')
+                else:
+                    raise RuntimeError('no DAI resource specified')
+
                 cls._INSTANCE = instance.connect()
             else:
                 raise RuntimeError('no backend service available')
