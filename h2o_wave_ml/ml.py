@@ -83,7 +83,7 @@ class Model(abc.ABC):
         """A Wave model engine type represented."""
 
     @abc.abstractmethod
-    def predict(self, data: Optional[List[List]] = None, file_path: Optional[str] = None, **kwargs) -> List[Tuple]:
+    def predict(self, data: Optional[List[List]] = None, file_path: str = '', **kwargs) -> List[Tuple]:
         """Returns the model's predictions for the given input rows.
 
         Args:
@@ -113,10 +113,10 @@ class _H2O3Model(Model):
         self.model = model
 
     @staticmethod
-    def _create_h2o3_frame(data: Optional[List[List]] = None, file_path: Optional[str] = None) -> h2o.H2OFrame:
+    def _create_h2o3_frame(data: Optional[List[List]] = None, file_path: str = '') -> h2o.H2OFrame:
         if data is not None:
             return h2o.H2OFrame(python_obj=data, header=1)
-        elif file_path is not None:
+        elif file_path:
             if os.path.exists(file_path):
                 return h2o.import_file(file_path)
             else:
@@ -197,7 +197,7 @@ class _H2O3Model(Model):
         aml = h2o.automl.get_automl(model_id)
         return _H2O3Model(aml.leader)
 
-    def predict(self, data: Optional[List[List]] = None, file_path: Optional[str] = None, **kwargs) -> List[Tuple]:
+    def predict(self, data: Optional[List[List]] = None, file_path: str = '', **kwargs) -> List[Tuple]:
         input_frame = self._create_h2o3_frame(data, file_path)
         output_frame = self.model.predict(input_frame)
 
@@ -450,9 +450,9 @@ class _DAIModel(Model):
 
         return ret
 
-    def predict(self, data: Optional[List[List]] = None, file_path: Optional[str] = None, **kwargs) -> List[Tuple]:
+    def predict(self, data: Optional[List[List]] = None, file_path: str = '', **kwargs) -> List[Tuple]:
 
-        if data is None and file_path is None:
+        if data is None and not file_path:
             raise ValueError('no data input')
 
         if data is not None:
@@ -476,11 +476,11 @@ def build_model(file_path: str, *, target_column: str, model_metric: ModelMetric
         model_metric: Optional evaluation metric to be used during modeling, specified by `h2o_wave_ml.ModelMetric`.
         task_type: Optional task type, specified by `h2o_wave_ml.TaskType`.
         model_type: Optional model type, specified by `h2o_wave_ml.ModelType`.
-        access_token: Optional token if engine needs to be authorized.
-        refresh_token: Option
+        access_token: Optional access token if engine needs to be authenticated.
+        refresh_token: Optional refresh token if model needs to be authenticated.
         kwargs: Optional parameters to be passed to the model builder.
     Returns:
-        A Wave model.
+        The Wave model.
     """
 
     if model_type is not None:
@@ -496,14 +496,16 @@ def build_model(file_path: str, *, target_column: str, model_metric: ModelMetric
     return _H2O3Model.build(file_path, target_column, model_metric, task_type, **kwargs)
 
 
-def get_model(model_id: str = '', version: str = '', endpoint_url: str = '', model_type: Optional[ModelType] = None,
+def get_model(model_id: str = '', endpoint_url: str = '', model_type: Optional[ModelType] = None,
               access_token: str = '', refresh_token: str = '') -> Optional[Model]:
-    """Retrieves a remote model using its ID.
+    """Retrieves a remote model using its ID or url.
 
     Args:
         model_id: The unique ID of the model.
+        endpoint_url: The endpoint url for deployed model.
         model_type: Optional type of the model, specified by `h2o_wave_ml.ModelType`.
-        access_token: Optional token if engine is provided by Steam.
+        access_token: Optional access token if model needs to be authenticated.
+        refresh_token: Optional refresh token if model needs to be authenticated.
     Returns:
         The Wave model.
     """
