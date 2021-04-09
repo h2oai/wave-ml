@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import abc
 import os.path
 import uuid
 from enum import Enum
 import tempfile
 from typing import Dict, Optional, List, Tuple, Any
+from urllib.parse import urljoin
 
 import driverlessai
 import datatable as dt
@@ -25,21 +27,32 @@ from h2o.automl import H2OAutoML
 from h2o.estimators.estimator_base import H2OEstimator
 import h2osteam
 from h2osteam.clients import DriverlessClient
+import mlops
+from _mlops.deployer import exceptions as ml_excp
+import requests
 
 
-def _get_env(key: str, default: Any):
-    return os.environ.get(f'H2O_WAVE_ML_{key}', default)
+def _get_env(key: str, default: Any = ''):
+    return os.environ.get(f'H2O_WAVE_{key}', default)
 
 
 class _Config:
     def __init__(self):
-        self.h2o3_url = _get_env('H2O3_URL', '')
-        self.dai_address = _get_env('DAI_ADDRESS', '')
-        self.dai_username = _get_env('DAI_USERNAME', '')
-        self.dai_password = _get_env('DAI_PASSWORD', '')
-        self.steam_address = _get_env('STEAM_ADDRESS', '')
-        self.steam_refresh_token = _get_env('STEAM_REFRESH_TOKEN', '')
-        self.steam_instance_name = _get_env('STEAM_INSTANCE_NAME', '')
+
+        # Wave ML namespace.
+        self.h2o3_url = _get_env('ML_H2O3_URL')
+        self.dai_address = _get_env('ML_DAI_ADDRESS')
+        self.dai_username = _get_env('ML_DAI_USERNAME')
+        self.dai_password = _get_env('ML_DAI_PASSWORD')
+        self.steam_address = _get_env('ML_STEAM_ADDRESS')
+        self.steam_refresh_token = _get_env('ML_STEAM_REFRESH_TOKEN')
+        self.steam_instance_name = _get_env('ML_STEAM_INSTANCE_NAME')
+        self.mlops_gateway = _get_env('ML_MLOPS_GATEWAY')
+
+        # OIDC namespace.
+        self.oidc_provider_url = _get_env('OIDC_PROVIDER_URL')
+        self.oidc_client_id = _get_env('OIDC_CLIENT_ID')
+        self.oidc_client_secret = _get_env('OIDC_CLIENT_SECRET')
 
 
 _config = _Config()
@@ -61,13 +74,14 @@ def _remove_prefix(text: str, prefix: str) -> str:
     return text[text.startswith(prefix) and len(prefix):]
 
 
-class Model:
+class Model(abc.ABC):
     """Represents a predictive model."""
 
     def __init__(self, type_: ModelType):
         self.type = type_
         """A Wave model engine type represented."""
 
+    @abc.abstractmethod
     def predict(self, data: Optional[List[List]] = None, file_path: Optional[str] = None, **kwargs) -> List[Tuple]:
         """Returns the model's predictions for the given input rows.
 
@@ -83,8 +97,6 @@ class Model:
             >>> model.predict([['ID', 'Letter'], [1, 'a'], [2, 'b'], [3, 'c']])
             [(16.6,), (17.8,), (18.9,)]
         """
-
-        raise NotImplementedError()
 
 
 class _H2O3Model(Model):
@@ -123,7 +135,7 @@ class _H2O3Model(Model):
         """Initializes H2O-3 library."""
 
         if not cls._INIT:
-            if _config.h2o3_url != '':
+            if not _config.h2o3_url:
                 h2o.init(url=_config.h2o3_url)
             else:
                 h2o.init()
@@ -201,9 +213,16 @@ class _DAIModel(Model):
 
     INT_TO_CAT_THRESHOLD = 50
 
-    def __init__(self, experiment):
+    def __init__(self, endpoint_url: str):
         super().__init__(ModelType.DAI)
-        self.experiment = experiment
+        self.endpoint_url = endpoint_url
+
+    @staticmethod
+    def _make_project_id() -> str:
+        """Generates a random project id."""
+
+        u = _make_id()
+        return f'wave-ml-{u}'
 
     @classmethod
     def _get_instance(cls, access_token: str = ''):
@@ -213,10 +232,10 @@ class _DAIModel(Model):
                                                     username=_config.dai_username,
                                                     password=_config.dai_password)
             elif _config.steam_address:
-                if access_token:
-                    h2osteam.login(url=_config.steam_address, access_token=access_token)
-                elif _config.steam_refresh_token:
+                if _config.steam_refresh_token:
                     h2osteam.login(url=_config.steam_address, refresh_token=_config.steam_refresh_token)
+                elif access_token:
+                    h2osteam.login(url=_config.steam_address, access_token=access_token)
                 else:
                     raise RuntimeError('no Steam credentials')
 
@@ -236,39 +255,29 @@ class _DAIModel(Model):
         return 'classification'
 
     @staticmethod
-    def _transpose(data: List[List]) -> Dict[str, List]:
-        return {
-            name: [data[row_i][col_i] for row_i in range(1, len(data))]
-            for col_i, name in enumerate(data[0])
-        }
+    def _refresh_token(refresh_token: str, provider_url: str, client_id: str, client_secret: str) -> Tuple[str, str]:
 
-    @staticmethod
-    def _extract_class(name: str) -> str:
-        """Extract a predicted class name from DAI column name.
+        provider_url = f'{provider_url}/' if not provider_url.endswith('/') else provider_url
+        r = requests.get(urljoin(provider_url, '.well-known/openid-configuration'))
+        r.raise_for_status()
+        conf_data = r.json()
 
-        Examples:
-            >>> _DAIModel._extract_class('target_column.class1')
-            'class1'
-        """
+        token_endpoint_url = conf_data['token_endpoint']
 
-        return name.split('.')[-1]
-
-    @classmethod
-    def _get_prediction_output(cls, df: dt.frame) -> List[Tuple]:
-        names = [cls._extract_class(name) for name in df.names]
-
-        ret = []
-        for i in range(df.nrows):
-            row = df[i, :].to_tuples()[0]
-            index = row.index(max(row))
-            ret.append(tuple([names[index], *row]))
-
-        return ret
+        payload = dict(
+            client_id=client_id,
+            client_secret=client_secret,
+            grant_type='refresh_token',
+            refresh_token=refresh_token,
+        )
+        r = requests.post(token_endpoint_url, data=payload)
+        r.raise_for_status()
+        token_data = r.json()
+        return token_data['access_token'], token_data['refresh_token']
 
     @classmethod
-    def build(cls, file_path: str, target_column: str, model_metric: ModelMetric, task_type: Optional[TaskType],
-              access_token: str, **kwargs) -> Model:
-        """Builds DAI based model."""
+    def _build_model(cls, file_path: str, target_column: str, model_metric: ModelMetric, task_type: Optional[TaskType],
+                     access_token: str, **kwargs) -> Model:
 
         dai = cls._get_instance(access_token)
 
@@ -294,52 +303,163 @@ class _DAIModel(Model):
         if model_metric != ModelMetric.AUTO:
             params['scorer'] = model_metric.name
 
-        ex = dai.experiments.create(
+        experiment = dai.experiments.create(
             train_dataset=dataset,
             target_column=target_column,
             task=task,
             **params,
         )
 
-        return _DAIModel(ex)
+        return experiment
 
     @classmethod
-    def get(cls, experiment_id: str, access_token: str) -> Model:
+    def _deploy_model(cls, experiment, access_token: str, deployment_env: str) -> str:
+        if not _config.mlops_gateway:
+            raise ValueError('no MLOps gateway specified')
+
+        dai = cls._get_instance()  # This instance should already by present.
+        prj = dai.projects.create(name=cls._make_project_id())
+        prj.link_experiment(experiment)
+
+        mlops_client = mlops.Client(gateway_url=_config.mlops_gateway,
+                                    token_provider=lambda: access_token)
+
+        # Fetch available deployment environments.
+        deployment_envs = mlops_client.storage.deployment_environment.list_deployment_environments(
+            mlops.StorageListDeploymentEnvironmentsRequest(prj.key))
+
+        # Look for the ID of the selected deployment environment
+        for env in deployment_envs.deployment_environment:
+            if env.display_name == deployment_env:
+                deployment_env_id = env.id
+                break
+        else:
+            raise ValueError('unknown deployment environment')
+
+        deployment = mlops_client.storage.deployment_environment.deploy(
+            mlops.StorageDeployRequest(
+                experiment_id=experiment.key,
+                deployment_environment_id=deployment_env_id,
+                type=mlops.StorageDeploymentType.SINGLE_MODEL,
+                metadata=mlops.StorageMetadata(
+                    values={"deploy/authentication/enabled": mlops.StorageValue(bool_value=False)}
+                ),
+            )
+        )
+
+        project_id = deployment.deployment.project_id
+
+        statuses = mlops_client.deployer.deployment_status.list_deployment_statuses(
+            mlops.DeployListDeploymentStatusesRequest(project_id=project_id))
+
+        endpoint_url = statuses.deployment_status[0].scorer.score.url
+
+        return endpoint_url
+
+    @classmethod
+    def build(cls, file_path: str, target_column: str, model_metric: ModelMetric, task_type: Optional[TaskType],
+              access_token: str, refresh_token: str, **kwargs) -> Model:
+        """Builds DAI based model."""
+
+        if refresh_token:
+            access_token, refresh_token = cls._refresh_token(refresh_token, _config.oidc_provider_url,
+                                                             _config.oidc_client_id, _config.oidc_client_secret)
+
+        experiment = cls._build_model(file_path=file_path, target_column=target_column, model_metric=model_metric,
+                                      task_type=task_type, access_token=access_token, **kwargs)
+
+        if refresh_token:
+            access_token, refresh_token = cls._refresh_token(refresh_token, _config.oidc_provider_url,
+                                                             _config.oidc_client_id, _config.oidc_client_secret)
+        elif not access_token and not refresh_token:
+            raise ValueError('not token credentials for MLOps specified')
+
+        deployment_env = kwargs.get('_mlops_deployment_env', 'PROD')
+        endpoint_url = cls._deploy_model(experiment, access_token, deployment_env)
+
+        # We have a project id but the model might not be deployed yet.
+        return _DAIModel(endpoint_url)
+
+    @classmethod
+    def get(cls, project_id: str, endpoint_url: str = '', access_token: str = '', refresh_token: str = '') -> Optional[Model]:
         """Retrieves a remote model given its ID."""
 
-        dai = cls._get_instance(access_token)
-        return _DAIModel(dai.experiments.get(experiment_id))
+        if endpoint_url:
+            return _DAIModel(endpoint_url)
 
-    def predict(self, data: Optional[List[List]] = None, file_path: Optional[str] = None, **_kwargs) -> List[Tuple]:
-        dai = self._get_instance()
-        dataset_id = _make_id()
+        if not _config.mlops_gateway:
+            raise ValueError('no MLOps gateway specified')
 
-        if data is not None:
-            df = dt.Frame(self._transpose(data))
-            with tempfile.TemporaryDirectory() as tmp_dir_name:
-                tmp_file_path = os.path.join(tmp_dir_name, _make_id() + '.csv')
-                df.to_csv(tmp_file_path, header=True)
-                dataset = dai.datasets.create(tmp_file_path, name=dataset_id)
-        elif file_path is not None:
-            dataset = dai.datasets.create(file_path, name=dataset_id)
-        else:
+        if refresh_token:
+            access_token, _ = cls._refresh_token(refresh_token, _config.oidc_provider_url,
+                                                 _config.oidc_client_id, _config.oidc_client_secret)
+
+        mlops_client = mlops.Client(gateway_url=_config.mlops_gateway,
+                                    token_provider=lambda: access_token)
+
+        try:
+            statuses = mlops_client.deployer.deployment_status.list_deployment_statuses(
+                mlops.DeployListDeploymentStatusesRequest(project_id=project_id))
+        except ml_excp.ApiException:
+            return None
+
+        # There should be a strategy to pick the right deployment instead of picking a zeroth one.
+        endpoint_url = statuses.deployment_status[0].scorer.score.url
+
+        return _DAIModel(endpoint_url)
+
+    @staticmethod
+    def _encode_for_prediction(data: List[List]) -> Dict:
+        if len(data) < 2:
+            raise ValueError('invalid input format')
+
+        return {
+            'fields': data[0],
+            'rows':  [[str(item) for item in row] for row in data[1:]],
+        }
+
+    @staticmethod
+    def _extract_class(name: str) -> str:
+        """Extract a predicted class name from DAI column name.
+
+        Examples:
+            >>> _DAIModel._extract_class('target_column.class1')
+            'class1'
+        """
+
+        return name.split('.')[-1]
+
+    @classmethod
+    def _decode_from_deployment(cls, data) -> List[Tuple]:
+        names = [cls._extract_class(name) for name in data['fields']]
+
+        ret = []
+        for row in data['score']:
+            values = [float(item) for item in row]
+            index = values.index(max(values))
+            ret.append(tuple([names[index], *values]))
+
+        return ret
+
+    def predict(self, data: Optional[List[List]] = None, file_path: Optional[str] = None, **kwargs) -> List[Tuple]:
+
+        if data is None and file_path is None:
             raise ValueError('no data input')
 
-        prediction_obj = self.experiment.predict(dataset=dataset)
-        dataset.delete()
+        if data is not None:
+            payload = self._encode_for_prediction(data)
+            r = requests.post(self.endpoint_url, json=payload)
+            r.raise_for_status()
+            return self._decode_from_deployment(r.json())
 
-        with tempfile.TemporaryDirectory() as tmp_dir_name:
-            tmp_file_path = os.path.join(tmp_dir_name, _make_id() + '.csv')
-            prediction_obj.download(dst_file=tmp_file_path)
-            prediction = dt.fread(tmp_file_path)
-            return self._get_prediction_output(prediction)
+        raise ValueError('not supported')
 
 
 def build_model(file_path: str, *, target_column: str, model_metric: ModelMetric = ModelMetric.AUTO,
                 task_type: Optional[TaskType] = None, model_type: Optional[ModelType] = None,
-                access_token: str = '', **kwargs) -> Model:
+                access_token: str = '', refresh_token: str = '', **kwargs) -> Model:
     """Trains a model.
-    If `model_type` is not specified, it is inferred from the current environment. Defaults to a H2O-3 model.
+    If `model_type` is not specified, it is inferred from the current environment. Defaults to an H2O-3 model.
 
     Args:
         file_path: The path to the training dataset.
@@ -348,6 +468,7 @@ def build_model(file_path: str, *, target_column: str, model_metric: ModelMetric
         task_type: Optional task type, specified by `h2o_wave_ml.TaskType`.
         model_type: Optional model type, specified by `h2o_wave_ml.ModelType`.
         access_token: Optional token if engine needs to be authorized.
+        refresh_token: Option
         kwargs: Optional parameters to be passed to the model builder.
     Returns:
         A Wave model.
@@ -357,15 +478,17 @@ def build_model(file_path: str, *, target_column: str, model_metric: ModelMetric
         if model_type == ModelType.H2O3:
             return _H2O3Model.build(file_path, target_column, model_metric, task_type, **kwargs)
         elif model_type == ModelType.DAI:
-            return _DAIModel.build(file_path, target_column, model_metric, task_type, access_token, **kwargs)
+            return _DAIModel.build(file_path, target_column, model_metric, task_type, access_token, refresh_token,
+                                   **kwargs)
 
     if _config.dai_address or _config.steam_address:
-        return _DAIModel.build(file_path, target_column, model_metric, task_type, access_token, **kwargs)
+        return _DAIModel.build(file_path, target_column, model_metric, task_type, access_token, refresh_token, **kwargs)
 
     return _H2O3Model.build(file_path, target_column, model_metric, task_type, **kwargs)
 
 
-def get_model(model_id: str, *, model_type: Optional[ModelType] = None, access_token: str = '') -> Model:
+def get_model(model_id: str = '', version: str = '', endpoint_url: str = '', model_type: Optional[ModelType] = None,
+              access_token: str = '', refresh_token: str = '') -> Optional[Model]:
     """Retrieves a remote model using its ID.
 
     Args:
@@ -380,10 +503,10 @@ def get_model(model_id: str, *, model_type: Optional[ModelType] = None, access_t
         if model_type == ModelType.H2O3:
             return _H2O3Model.get(model_id)
         elif model_type == ModelType.DAI:
-            return _DAIModel.get(model_id, access_token)
+            return _DAIModel.get(model_id, endpoint_url, access_token, refresh_token)
 
     if _config.dai_address or _config.steam_address:
-        return _DAIModel.get(model_id, access_token)
+        return _DAIModel.get(model_id, endpoint_url, access_token, refresh_token)
 
     return _H2O3Model.get(model_id)
 

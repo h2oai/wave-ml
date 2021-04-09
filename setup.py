@@ -40,5 +40,7 @@ setuptools.setup(
         'h2o==3.32.0.2',
         'driverlessai',
         'h2osteam@https://enterprise-steam.s3.amazonaws.com/release/1.8.1/python/h2osteam-1.8.1-py2.py3-none-any.whl',
+        'mlops-client@https://s3.amazonaws.com/artifacts.h2o.ai/releases/ai/h2o/mlops/rel-0.40.1/6/mlops_client-0.40.1%2Bea66172.rel0.40.1.12-py2.py3-none-any.whl',
+        'requests',
     ]
 )
