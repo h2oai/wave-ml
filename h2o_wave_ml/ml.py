@@ -17,6 +17,7 @@ import os.path
 import uuid
 from enum import Enum
 import tempfile
+import time
 from typing import Dict, Optional, List, Tuple, Any
 from urllib.parse import urljoin
 
@@ -213,6 +214,8 @@ class _DAIModel(Model):
     _INSTANCE = None
 
     INT_TO_CAT_THRESHOLD = 50
+    MLOPS_REFRESH_STATUS_INTERVAL = 1
+    MLOPS_MAX_WAIT_TIME = 300
 
     def __init__(self, endpoint_url: str):
         super().__init__(ModelType.DAI)
@@ -283,6 +286,20 @@ class _DAIModel(Model):
         r.raise_for_status()
         token_data = r.json()
         return token_data['access_token'], token_data['refresh_token']
+
+    @classmethod
+    def _wait_for_deployment(cls, mlops_client: mlops.Client, deployment_id: str):
+
+        deadline = time.monotonic() + cls.MLOPS_MAX_WAIT_TIME
+
+        status = mlops_client.deployer.deployment_status.get_deployment_status(
+            mlops.DeployGetDeploymentStatusRequest(deployment_id=deployment_id)).deployment_status
+        while status.state != mlops.DeployDeploymentState.HEALTHY:
+            time.sleep(cls.MLOPS_REFRESH_STATUS_INTERVAL)
+            status = mlops_client.deployer.deployment_status.get_deployment_status(
+                mlops.DeployGetDeploymentStatusRequest(deployment_id=deployment_id)).deployment_status
+            if time.monotonic() > deadline:
+                raise RuntimeError('deployment timeout error')
 
     @classmethod
     def _build_model(cls, file_path: str, target_column: str, model_metric: ModelMetric, task_type: Optional[TaskType],
@@ -357,13 +374,13 @@ class _DAIModel(Model):
         )
 
         project_id = deployment.deployment.project_id
+        deployment_id = deployment.deployment.id
+
+        cls._wait_for_deployment(mlops_client, deployment_id)
 
         statuses = mlops_client.deployer.deployment_status.list_deployment_statuses(
             mlops.DeployListDeploymentStatusesRequest(project_id=project_id))
-
-        endpoint_url = statuses.deployment_status[0].scorer.score.url
-
-        return endpoint_url
+        return statuses.deployment_status[0].scorer.score.url
 
     @classmethod
     def build(cls, file_path: str, target_column: str, model_metric: ModelMetric, task_type: Optional[TaskType],
