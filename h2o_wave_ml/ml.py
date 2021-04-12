@@ -445,6 +445,20 @@ class _DAIModel(Model):
         }
 
     @staticmethod
+    def _encode_from_df(df: dt.Frame) -> Dict:
+
+        def _handle_bool(x):
+            # Breaking a default Datatable behaviour
+            if isinstance(x, bool):
+                return 1 if x else 0
+            return x
+
+        return {
+            'fields': list(df.names),
+            'rows': [[str(_handle_bool(item)) for item in row] for row in df.to_tuples()],
+        }
+
+    @staticmethod
     def _extract_class(name: str) -> str:
         """Extract a predicted class name from DAI column name.
 
@@ -469,16 +483,17 @@ class _DAIModel(Model):
 
     def predict(self, data: Optional[List[List]] = None, file_path: str = '', **kwargs) -> List[Tuple]:
 
-        if data is None and not file_path:
-            raise ValueError('no data input')
-
         if data is not None:
             payload = self._encode_for_prediction(data)
-            r = requests.post(self.endpoint_url, json=payload)
-            r.raise_for_status()
-            return self._decode_from_deployment(r.json())
+        elif file_path:
+            df = dt.fread(file_path)
+            payload = self._encode_from_df(df)
+        else:
+            raise ValueError('no data input')
 
-        raise ValueError('not supported')
+        r = requests.post(self.endpoint_url, json=payload)
+        r.raise_for_status()
+        return self._decode_from_deployment(r.json())
 
 
 def build_model(file_path: str, *, target_column: str, model_metric: ModelMetric = ModelMetric.AUTO,
