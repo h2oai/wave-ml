@@ -79,9 +79,9 @@ def _remove_prefix(text: str, prefix: str) -> str:
 class Model(abc.ABC):
     """Represents a predictive model."""
 
-    def __init__(self, type_: ModelType):
-        self.type = type_
-        """A Wave model engine type represented."""
+    def __init__(self, model_type: ModelType):
+        self.type = model_type
+        """A Wave model engine type."""
 
     @abc.abstractmethod
     def predict(self, data: Optional[List[List]] = None, file_path: str = '', **kwargs) -> List[Tuple]:
@@ -99,6 +99,10 @@ class Model(abc.ABC):
             >>> model.predict([['ID', 'Letter'], [1, 'a'], [2, 'b'], [3, 'c']])
             [(16.6,), (17.8,), (18.9,)]
         """
+
+    @abc.abstractproperty
+    def endpoint_url(self) -> Optional[str]:
+        """An endpoint url for a deployed model, if any."""
 
 
 class _H2O3Model(Model):
@@ -208,6 +212,10 @@ class _H2O3Model(Model):
             prediction = dt.fread(tmp_file_path)
             return prediction.to_tuples()
 
+    @property
+    def endpoint_url(self) -> Optional[str]:
+        return None
+
 
 class _DAIModel(Model):
 
@@ -219,7 +227,7 @@ class _DAIModel(Model):
 
     def __init__(self, endpoint_url: str):
         super().__init__(ModelType.DAI)
-        self.endpoint_url = endpoint_url
+        self._endpoint_url = endpoint_url
 
     @staticmethod
     def _make_project_id() -> str:
@@ -237,9 +245,9 @@ class _DAIModel(Model):
                                                     password=_config.dai_password)
             elif _config.steam_address:
                 if _config.steam_refresh_token:
-                    h2osteam.login(url=_config.steam_address, refresh_token=_config.steam_refresh_token)
+                    h2osteam.login(url=_config.steam_address, refresh_token=_config.steam_refresh_token, verify_ssl=False)
                 elif access_token:
-                    h2osteam.login(url=_config.steam_address, access_token=access_token)
+                    h2osteam.login(url=_config.steam_address, access_token=access_token, verify_ssl=False)
                 else:
                     raise RuntimeError('no Steam credentials')
 
@@ -491,9 +499,13 @@ class _DAIModel(Model):
         else:
             raise ValueError('no data input')
 
-        r = requests.post(self.endpoint_url, json=payload)
+        r = requests.post(self._endpoint_url, json=payload)
         r.raise_for_status()
         return self._decode_from_deployment(r.json())
+
+    @property
+    def endpoint_url(self) -> Optional[str]:
+        return self._endpoint_url
 
 
 def build_model(file_path: str, *, target_column: str, model_metric: ModelMetric = ModelMetric.AUTO,
@@ -505,9 +517,9 @@ def build_model(file_path: str, *, target_column: str, model_metric: ModelMetric
     Args:
         file_path: The path to the training dataset.
         target_column: The name of the target column (the column to be predicted).
-        model_metric: Optional evaluation metric to be used during modeling, specified by `h2o_wave_ml.ModelMetric`.
-        task_type: Optional task type, specified by `h2o_wave_ml.TaskType`.
-        model_type: Optional model type, specified by `h2o_wave_ml.ModelType`.
+        model_metric: Optional evaluation metric to be used during modeling, specified by `h2o_wave_ml.ml.ModelMetric`.
+        task_type: Optional task type, specified by `h2o_wave_ml.ml.TaskType`.
+        model_type: Optional model type, specified by `h2o_wave_ml.ml.ModelType`.
         access_token: Optional access token if engine needs to be authenticated.
         refresh_token: Optional refresh token if model needs to be authenticated.
         kwargs: Optional parameters to be passed to the model builder.
@@ -535,7 +547,7 @@ def get_model(model_id: str = '', endpoint_url: str = '', model_type: Optional[M
     Args:
         model_id: The unique ID of the model.
         endpoint_url: The endpoint url for deployed model.
-        model_type: Optional type of the model, specified by `h2o_wave_ml.ModelType`.
+        model_type: Optional type of the model, specified by `h2o_wave_ml.ml.ModelType`.
         access_token: Optional access token if model needs to be authenticated.
         refresh_token: Optional refresh token if model needs to be authenticated.
     Returns:
@@ -558,7 +570,7 @@ def save_model(model: Model, *, output_dir_path: str) -> str:
     """Saves a model to the given location.
 
     Args:
-       model: The model produced by `h2o_wave_ml.build_model`.
+       model: The model produced by `h2o_wave_ml.ml.build_model`.
        output_dir_path: A directory where the model will be saved.
     Returns:
         The file path to the saved model.
