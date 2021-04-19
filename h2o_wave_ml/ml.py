@@ -49,6 +49,7 @@ class _Config:
         self.steam_refresh_token = _get_env('ML_STEAM_REFRESH_TOKEN')
         self.steam_instance_name = _get_env('ML_STEAM_INSTANCE_NAME')
         self.steam_cluster_name = _get_env('ML_STEAM_CLUSTER_NAME')
+        self.steam_verify_ssl = _get_env('ML_STEAM_VERIFY_SSL', True)
         self.mlops_gateway = _get_env('ML_MLOPS_GATEWAY')
 
         # OIDC namespace.
@@ -245,9 +246,11 @@ class _DAIModel(Model):
                                                     password=_config.dai_password)
             elif _config.steam_address:
                 if _config.steam_refresh_token:
-                    h2osteam.login(url=_config.steam_address, refresh_token=_config.steam_refresh_token, verify_ssl=False)
+                    h2osteam.login(url=_config.steam_address, refresh_token=_config.steam_refresh_token,
+                                   verify_ssl=_config.steam_verify_ssl)
                 elif access_token:
-                    h2osteam.login(url=_config.steam_address, access_token=access_token, verify_ssl=False)
+                    h2osteam.login(url=_config.steam_address, access_token=access_token,
+                                   verify_ssl=_config.steam_verify_ssl)
                 else:
                     raise RuntimeError('no Steam credentials')
 
