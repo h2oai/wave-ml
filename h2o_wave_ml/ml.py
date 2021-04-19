@@ -91,14 +91,17 @@ class Model(abc.ABC):
         Args:
             data: A list of rows of column values. First row has to contain the column headers.
             file_path: The file path to the dataset.
+
         Returns:
             A list of tuples representing predicted values.
+
         Examples:
             >>> from h2o_wave_ml import build_model
             >>> model = build_model(...)
             >>> # Three rows and two columns:
             >>> model.predict([['ID', 'Letter'], [1, 'a'], [2, 'b'], [3, 'c']])
             [(16.6,), (17.8,), (18.9,)]
+
         """
 
     @abc.abstractproperty
@@ -476,6 +479,7 @@ class _DAIModel(Model):
         Examples:
             >>> _DAIModel._extract_class('target_column.class1')
             'class1'
+
         """
 
         return name.split('.')[-1]
@@ -515,19 +519,22 @@ def build_model(file_path: str, *, target_column: str, model_metric: ModelMetric
                 task_type: Optional[TaskType] = None, model_type: Optional[ModelType] = None,
                 access_token: str = '', refresh_token: str = '', **kwargs) -> Model:
     """Trains a model.
+
     If `model_type` is not specified, it is inferred from the current environment. Defaults to an H2O-3 model.
 
     Args:
         file_path: The path to the training dataset.
         target_column: The name of the target column (the column to be predicted).
-        model_metric: Optional evaluation metric to be used during modeling, specified by `h2o_wave_ml.ml.ModelMetric`.
-        task_type: Optional task type, specified by `h2o_wave_ml.ml.TaskType`.
-        model_type: Optional model type, specified by `h2o_wave_ml.ml.ModelType`.
+        model_metric: Optional evaluation metric to be used during modeling.
+        task_type: Optional task type. Will be automatically determined if it's not specified.
+        model_type: Optional model type.
         access_token: Optional access token if engine needs to be authenticated.
         refresh_token: Optional refresh token if model needs to be authenticated.
         kwargs: Optional parameters to be passed to the model builder.
+
     Returns:
         The Wave model.
+
     """
 
     if model_type is not None:
@@ -550,11 +557,13 @@ def get_model(model_id: str = '', endpoint_url: str = '', model_type: Optional[M
     Args:
         model_id: The unique ID of the model.
         endpoint_url: The endpoint url for deployed model.
-        model_type: Optional type of the model, specified by `h2o_wave_ml.ml.ModelType`.
+        model_type: Optional type of the model.
         access_token: Optional access token if model needs to be authenticated.
         refresh_token: Optional refresh token if model needs to be authenticated.
+
     Returns:
         The Wave model.
+
     """
 
     if model_type is not None:
@@ -573,10 +582,12 @@ def save_model(model: Model, *, output_dir_path: str) -> str:
     """Saves a model to the given location.
 
     Args:
-       model: The model produced by `h2o_wave_ml.ml.build_model`.
+       model: The model to store.
        output_dir_path: A directory where the model will be saved.
+
     Returns:
         The file path to the saved model.
+
     """
 
     if isinstance(model, _H2O3Model):
@@ -589,8 +600,10 @@ def load_model(file_path: str) -> Model:
 
     Args:
         file_path: Path to the saved model.
+
     Returns:
         The Wave model.
+
     """
 
     _H2O3Model._ensure()
