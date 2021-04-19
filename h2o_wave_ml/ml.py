@@ -145,7 +145,7 @@ class _H2O3Model(Model):
         """Initializes H2O-3 library."""
 
         if not cls._INIT:
-            if not _config.h2o3_url:
+            if _config.h2o3_url:
                 h2o.init(url=_config.h2o3_url)
             else:
                 h2o.init()
