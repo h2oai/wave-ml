@@ -88,8 +88,9 @@ async def serve(q: Q):
 ### build_model()
 
 ```python3
-def build_model(file_path: str, target_column: str, model_metric: ModelMetric = ModelMetric.AUTO,
-                model_type: Optional[ModelType] = None, **kwargs) -> Model:
+def build_model(file_path: str, *, target_column: str, model_metric: ModelMetric = ModelMetric.AUTO,
+                task_type: Optional[TaskType] = None, model_type: Optional[ModelType] = None,
+                access_token: str = '', refresh_token: str = '', **kwargs) -> Model:
 ```
 
 Trains a model.
@@ -98,18 +99,20 @@ If `model_type` is not specified, it is inferred from the current environment. D
 
 - `file_path`: The path to the training dataset.
 - `target_column`: The name of the target column (the column to be predicted).
-- `model_metric`: Optional evaluation metric to be used during modeling, specified by `h2o_wave_ml.ModelMetric`.
-- `model_type`: Optional model type, specified by `h2o_wave_ml.ModelType`.
+- `model_metric`: Optional evaluation metric to be used during modeling.
+- `model_type`: Optional model type.
+- `access_token`: Optional access token if engine needs to be authenticated.
+- `refresh_token`: Optional refresh token if model needs to be authenticated.
 - `kwargs`: Optional parameters to be passed to the model builder.
 
 Returns:
     A Wave model.
-    
-    
+
 ### model.predict()
+
 ```python3
 class Model:
-    def predict(self, data: Optional[List[List]] = None, file_path: Optional[str] = None, **kwargs) -> List[Tuple]:
+    def predict(self, data: Optional[List[List]] = None, file_path: str = '', **kwargs) -> List[Tuple]:
 ```
 
 Returns the model's predictions for the given input rows. A file path or Python object can be passed.
@@ -129,16 +132,32 @@ Example:
 Returns:
     A list of tuples representing predicted values.
 
+
+### model.endpoint_url
+
+```python3
+class Model:
+    def endpoint_url(self) -> Optional[str]:
+```
+
+Returns:
+    An endpoint url for a deployed model, if any.
+
+
 ### get_model()
 
 ```python3
-def get_model(model_id: str, model_type: Optional[ModelType] = None) -> Model:
+def get_model(model_id: str = '', endpoint_url: str = '', model_type: Optional[ModelType] = None,
+              access_token: str = '', refresh_token: str = '') -> Optional[Model]:
 ```
 
-Retrieves a remote model using its ID.
+Retrieves a remote model using its ID or url.
 
 - `model_id`: The unique ID of the model.
-- `model_type`: (Optional) The type of the model, specified by `h2o_wave_ml.ModelType`.
+- `endpoint_url`: The endpoint url for deployed model.
+- `model_type`: Optional type of the model.
+- `access_token`: Optional access token if model needs to be authenticated.
+- `refresh_token`: Optional refresh token if model needs to be authenticated.
 
 Returns:
     The Wave model.
@@ -146,12 +165,12 @@ Returns:
 ### save_model()
 
 ```python3
-def save_model(model: Model, output_dir_path: str) -> str:
+def save_model(model: Model, *, output_dir_path: str) -> str:
 ```
 
 Saves a model to the given location.
 
-- `model`: The model produced by `h2o_wave_ml.build_model`.
+- `model`: The model to store.
 - `output_dir_path`: A directory where the model will be saved.
 
 Returns:
@@ -174,11 +193,25 @@ Returns:
 
 The environment variables ensure the correct behaviour of a function calls behind the scenes. Based on a setup the API might spawn a new `H2O-3` instance or use existing `DAI` instance, use plain password to authenticate or utilize OpenID Connect, etc.
 
-Currently just one environment variable is available to set:
-
 - `H2O_WAVE_ML_H2O3_URL`, if set the existing instance of `H2O-3` will be used instead of spawning a fresh one.
 
-## Development setup 
+- `H2O_WAVE_ML_DAI_ADDRESS`, the address to the DAI standalone instance.
+- `H2O_WAVE_ML_DAI_USERNAME`, the username to the DAI standalone instance.
+- `H2O_WAVE_ML_DAI_PASSWORD`, the password to the DAI standalone instance.
+
+- `H2O_WAVE_ML_STEAM_ADDRESS`, the Steam used for DAI provisioning.
+- `H2O_WAVE_ML_STEAM_REFRESH_TOKEN`, the Steam user token allowing to connect without any other credentials (available inside Steam).
+- `H2O_WAVE_ML_STEAM_INSTANCE_NAME`, the DAI instance name, Wave ML will use to train a model on.
+- `H2O_WAVE_ML_STEAM_CLUSTER_NAME`, the DAI master node name, Wave ML will use to provision a new instance.
+- `H2O_WAVE_ML_STEAM_VERIFY_SSL`, whether to switch on/off SSL verification in Steam connection (useful for local development).
+
+- `H2O_WAVE_ML_MLOPS_GATEWAY`, the MLOps address.
+
+- `H2O_WAVE_OIDC_PROVIDER_URL`, OIDC provider. Used for a token refresh.
+- `H2O_WAVE_OIDC_CLIENT_ID`, OIDC client ID.
+- `H2O_WAVE_OIDC_CLIENT_SECRET`, OIDC client secret.
+
+## Development setup
 
 A python of version `3.6.1` or greater is required.
 
