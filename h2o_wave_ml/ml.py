@@ -18,7 +18,7 @@ import uuid
 from enum import Enum
 import tempfile
 import time
-from typing import Dict, Optional, List, Tuple, Any
+from typing import Dict, Optional, List, Tuple, Any, Union
 from urllib.parse import urljoin
 
 import driverlessai
@@ -37,6 +37,14 @@ def _get_env(key: str, default: Any = ''):
     return os.environ.get(f'H2O_WAVE_{key}', default)
 
 
+def _is_enabled(value: Union[bool, str]):
+    if isinstance(value, bool):
+        return value
+    if value.lower() == 'true':
+        return True
+    return False
+
+
 class _Config:
     def __init__(self):
 
@@ -49,7 +57,7 @@ class _Config:
         self.steam_refresh_token = _get_env('ML_STEAM_REFRESH_TOKEN')
         self.steam_instance_name = _get_env('ML_STEAM_INSTANCE_NAME')
         self.steam_cluster_name = _get_env('ML_STEAM_CLUSTER_NAME')
-        self.steam_verify_ssl = _get_env('ML_STEAM_VERIFY_SSL', True)
+        self.steam_verify_ssl = _is_enabled(_get_env('ML_STEAM_VERIFY_SSL', True))
         self.mlops_gateway = _get_env('ML_MLOPS_GATEWAY')
 
         # OIDC namespace.
@@ -264,7 +272,9 @@ class _DAIModel(Model):
                 elif _config.steam_instance_name:
                     instance = DriverlessClient.get_instance(name=_config.steam_instance_name)
                     if instance.status() == 'stopped':
-                        raise RuntimeError('DAI instance not ready')
+                        raise RuntimeError('DAI instance not ready: stopped')
+                    elif instance.status() == 'failed':
+                        raise RuntimeError('DAI instance not ready: failed')
                 else:
                     raise RuntimeError('no DAI resource specified')
 
