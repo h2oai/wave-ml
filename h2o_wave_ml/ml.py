@@ -16,6 +16,7 @@ import abc
 import os.path
 import uuid
 from enum import Enum
+import sys
 import tempfile
 import time
 from typing import Dict, Optional, List, Tuple, Any, Union
@@ -26,11 +27,15 @@ import datatable as dt
 import h2o
 from h2o.automl import H2OAutoML
 from h2o.estimators.estimator_base import H2OEstimator
-import h2osteam
-from h2osteam.clients import DriverlessClient, MultinodeClient
-import mlops
-from _mlops.deployer import exceptions as ml_excp
 import requests
+
+try:
+    import h2osteam
+    from h2osteam.clients import DriverlessClient, MultinodeClient
+    import mlops
+    from _mlops.deployer import exceptions as ml_excp
+except ModuleNotFoundError:
+    pass
 
 
 def _get_env(key: str, default: Any = ''):
@@ -83,6 +88,22 @@ def _make_id() -> str:
 
 def _remove_prefix(text: str, prefix: str) -> str:
     return text[text.startswith(prefix) and len(prefix):]
+
+
+def _is_package_imported(name: str) -> bool:
+    try:
+        sys.modules[name]
+    except KeyError:
+        return False
+    return True
+
+
+def _is_steam_imported() -> bool:
+    return _is_package_imported('h2osteam')
+
+
+def _is_mlops_imported() -> bool:
+    return _is_package_imported('mlops')
 
 
 class Model(abc.ABC):
@@ -256,6 +277,10 @@ class _DAIModel(Model):
                                                     username=_config.dai_username,
                                                     password=_config.dai_password)
             elif _config.steam_address:
+
+                if not _is_steam_imported():
+                    raise RuntimeError('no Steam package installed (install h2osteam)')
+
                 if _config.steam_refresh_token:
                     h2osteam.login(url=_config.steam_address, refresh_token=_config.steam_refresh_token,
                                    verify_ssl=_config.steam_verify_ssl)
@@ -312,7 +337,7 @@ class _DAIModel(Model):
         return token_data['access_token'], token_data['refresh_token']
 
     @classmethod
-    def _wait_for_deployment(cls, mlops_client: mlops.Client, deployment_id: str):
+    def _wait_for_deployment(cls, mlops_client, deployment_id: str):
 
         deadline = time.monotonic() + cls.MLOPS_MAX_WAIT_TIME
 
@@ -364,6 +389,10 @@ class _DAIModel(Model):
 
     @classmethod
     def _deploy_model(cls, experiment, access_token: str, deployment_env: str) -> str:
+
+        if not _is_mlops_imported():
+            raise RuntimeError('no MLOps package installed (install mlops)')
+
         if not _config.mlops_gateway:
             raise ValueError('no MLOps gateway specified')
 
@@ -436,6 +465,9 @@ class _DAIModel(Model):
 
         if endpoint_url:
             return _DAIModel(endpoint_url)
+
+        if not _is_mlops_imported():
+            raise RuntimeError('no MLOps package installed (install mlops)')
 
         if not _config.mlops_gateway:
             raise ValueError('no MLOps gateway specified')
