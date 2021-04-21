@@ -21,7 +21,7 @@ clean: purge ## Clean all files produced by make
 	rm -rf venv
 
 .PHONY: release
-release: venv ## Create a .whl file
+release: setup ## Create a .whl file
 	./venv/bin/python setup.py bdist_wheel
 
 .PHONY: help
