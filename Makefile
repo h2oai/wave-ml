@@ -24,6 +24,11 @@ clean: purge ## Clean all files produced by make
 release: setup ## Create a .whl file
 	./venv/bin/python setup.py bdist_wheel
 
+.PHONY: release-pypi
+release-pypi: setup
+	sed -e "/h2osteam/d" -e "/mlops-client/d" setup.py > setup.alt.py
+	./venv/bin/python setup.alt.py bdist_wheel
+
 .PHONY: help
 help: ## List all make tasks
 	@grep -Eh '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

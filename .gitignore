@@ -42,3 +42,4 @@ venv/
 /.vscode
 /.idea
 *.state
+setup.alt.py

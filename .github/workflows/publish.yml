@@ -18,7 +18,7 @@ jobs:
           python-version: '3.7'
 
       - name: Build package
-        run: make release
+        run: make release-pypi
 
       - name: Install twine
         run: pip install twine
