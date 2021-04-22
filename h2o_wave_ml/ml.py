@@ -143,27 +143,27 @@ class _H2O3Model(Model):
 
     _INIT = False
     _SUPPORTED_PARAMS = [
-        '_h2o_max_runtime_secs',
-        '_h2o_max_models',
-        '_h2o_nfolds',
-        '_h2o_balance_classes',
-        '_h2o_class_sampling_factors',
-        '_h2o_max_after_balance_size',
-        '_h2o_max_runtime_secs_per_model',
-        '_h2o_stopping_tolerance',
-        '_h2o_stopping_rounds',
-        '_h2o_seed',
-        '_h2o_exclude_algos',
-        '_h2o_include_algos',
-        '_h2o_modeling_plan',
-        '_h2o_preprocessing',
-        '_h2o_exploitation_ratio',
-        '_h2o_monotone_constraints',
-        '_h2o_keep_cross_validation_predictions',
-        '_h2o_keep_cross_validation_models',
-        '_h2o_keep_cross_validation_fold_assignment',
-        '_h2o_verbosity',
-        '_h2o_export_checkpoints_dir'
+        '_h2o3_max_runtime_secs',
+        '_h2o3_max_models',
+        '_h2o3_nfolds',
+        '_h2o3_balance_classes',
+        '_h2o3_class_sampling_factors',
+        '_h2o3_max_after_balance_size',
+        '_h2o3_max_runtime_secs_per_model',
+        '_h2o3_stopping_tolerance',
+        '_h2o3_stopping_rounds',
+        '_h2o3_seed',
+        '_h2o3_exclude_algos',
+        '_h2o3_include_algos',
+        '_h2o3_modeling_plan',
+        '_h2o3_preprocessing',
+        '_h2o3_exploitation_ratio',
+        '_h2o3_monotone_constraints',
+        '_h2o3_keep_cross_validation_predictions',
+        '_h2o3_keep_cross_validation_models',
+        '_h2o3_keep_cross_validation_fold_assignment',
+        '_h2o3_verbosity',
+        '_h2o3_export_checkpoints_dir'
     ]
 
     INT_TO_CAT_THRESHOLD = 50
