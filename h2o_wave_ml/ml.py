@@ -223,7 +223,7 @@ class _H2O3Model(Model):
         id_ = cls._make_project_id()
 
         params = {
-            _remove_prefix(key, '_h2o_'): kwargs[key]
+            _remove_prefix(key, '_h2o3_'): kwargs[key]
             for key in kwargs
             if key in cls._SUPPORTED_PARAMS
         }
@@ -480,7 +480,6 @@ class _DAIModel(Model):
         deployment_env = kwargs.get('_mlops_deployment_env', 'PROD')
         endpoint_url = cls._deploy_model(experiment, access_token, deployment_env)
 
-        # We have a project id but the model might not be deployed yet.
         return _DAIModel(endpoint_url)
 
     @classmethod
