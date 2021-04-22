@@ -238,12 +238,8 @@ class _H2O3Model(Model):
         else:
             raise ValueError('file not found')
 
-        cols = list(frame.columns)
-
-        try:
-            cols.remove(target_column)
-        except ValueError:
-            raise ValueError('no target column')
+        if target_column not in frame.columns:
+            raise ValueError('target column not found')
 
         if task_type is None:
             if cls._is_classification_task(frame, target_column):
@@ -251,7 +247,7 @@ class _H2O3Model(Model):
         elif task_type == TaskType.CLASSIFICATION:
             frame[target_column] = frame[target_column].asfactor()
 
-        aml.train(x=cols, y=target_column, training_frame=frame)
+        aml.train(y=target_column, training_frame=frame)
         return _H2O3Model(aml.leader)
 
     @classmethod
@@ -380,7 +376,7 @@ class _DAIModel(Model):
 
     @classmethod
     def _build_model(cls, file_path: str, target_column: str, model_metric: ModelMetric, task_type: Optional[TaskType],
-                     access_token: str, **kwargs) -> Model:
+                     access_token: str, **kwargs):
 
         dai = cls._get_instance(access_token)
 
@@ -488,7 +484,8 @@ class _DAIModel(Model):
         return _DAIModel(endpoint_url)
 
     @classmethod
-    def get(cls, project_id: str, endpoint_url: str = '', access_token: str = '', refresh_token: str = '') -> Optional[Model]:
+    def get(cls, project_id: str, endpoint_url: str = '', access_token: str = '',
+            refresh_token: str = '') -> Optional[Model]:
         """Retrieves a remote model given its ID."""
 
         if endpoint_url:
