@@ -23,13 +23,6 @@ TEMPLATE = '''
 '''
 
 
-def compute_matrix(q: Q):
-    threshold = q.args.slider if 'slider' in q.args else 0.5
-    y_pred = [p[1] < threshold for p in q.client.prediction]
-    tn, fp, fn, tp = confusion_matrix(q.app.y_true, y_pred).ravel()
-    return dict(tn=tn, fp=fp, fn=fn, tp=tp)
-
-
 def make_header(textbox_value: Optional[str] = '') -> List[ui.Component]:
     return [
         ui.text_xl('Confusion Matrix for Titanic'),
@@ -56,11 +49,18 @@ def make_message(type_: str, message: str) -> List[ui.Component]:
     ]
 
 
-def make_loading():
+def make_loading() -> List[ui.Component]:
     return [
         ui.text_xl('Confusion Matrix for Titanic'),
         ui.progress(label='Building a model'),
     ]
+
+
+def compute_matrix(q: Q):
+    threshold = q.args.slider if 'slider' in q.args else 0.5
+    y_pred = [p[1] < threshold for p in q.client.prediction]
+    tn, fp, fn, tp = confusion_matrix(q.app.y_true, y_pred).ravel()
+    return dict(tn=tn, fp=fp, fn=fn, tp=tp)
 
 
 @on()
