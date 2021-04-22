@@ -133,7 +133,8 @@ class Model(abc.ABC):
 
         """
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def endpoint_url(self) -> Optional[str]:
         """An endpoint url for a deployed model, if any."""
 
@@ -141,9 +142,30 @@ class Model(abc.ABC):
 class _H2O3Model(Model):
 
     _INIT = False
+    _SUPPORTED_PARAMS = [
+        '_h2o_max_runtime_secs',
+        '_h2o_max_models',
+        '_h2o_nfolds',
+        '_h2o_balance_classes',
+        '_h2o_class_sampling_factors',
+        '_h2o_max_after_balance_size',
+        '_h2o_max_runtime_secs_per_model',
+        '_h2o_stopping_tolerance',
+        '_h2o_stopping_rounds',
+        '_h2o_seed',
+        '_h2o_exclude_algos',
+        '_h2o_include_algos',
+        '_h2o_modeling_plan',
+        '_h2o_preprocessing',
+        '_h2o_exploitation_ratio',
+        '_h2o_monotone_constraints',
+        '_h2o_keep_cross_validation_predictions',
+        '_h2o_keep_cross_validation_models',
+        '_h2o_keep_cross_validation_fold_assignment',
+        '_h2o_verbosity',
+        '_h2o_export_checkpoints_dir'
+    ]
 
-    MAX_RUNTIME_SECS = 60 * 60
-    MAX_MODELS = 20
     INT_TO_CAT_THRESHOLD = 50
 
     def __init__(self, model: H2OEstimator):
@@ -199,11 +221,17 @@ class _H2O3Model(Model):
         cls._ensure()
 
         id_ = cls._make_project_id()
-        aml = H2OAutoML(max_runtime_secs=kwargs.get('_h2o3_max_runtime_secs', cls.MAX_RUNTIME_SECS),
-                        max_models=kwargs.get('_h2o3_max_models', cls.MAX_MODELS),
-                        project_name=id_,
+
+        params = {
+            _remove_prefix(key, '_h2o_'): kwargs[key]
+            for key in kwargs
+            if key in cls._SUPPORTED_PARAMS
+        }
+
+        aml = H2OAutoML(project_name=id_,
                         stopping_metric=model_metric.name,
-                        sort_metric=model_metric.name)
+                        sort_metric=model_metric.name,
+                        **params)
 
         if os.path.exists(file_path):
             frame = h2o.import_file(file_path)
