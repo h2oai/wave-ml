@@ -89,7 +89,7 @@ async def load(q: Q):
         q.page['matrix'].items = make_matrix(model_id=q.args.project_id, **compute_matrix(q))
 
 
-@app('/demo')
+@app('/')
 async def serve(q: Q):
 
     if not q.app.initialized:
