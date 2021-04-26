@@ -13,17 +13,16 @@
 # limitations under the License.
 
 import abc
+import csv
 import os.path
 import uuid
 from enum import Enum
 import sys
-import tempfile
 import time
-from typing import Dict, Optional, List, Tuple, Any, Union
+from typing import Dict, Optional, List, Tuple, Any, Union, IO
 from urllib.parse import urljoin
 
 import driverlessai
-import datatable as dt
 import h2o
 from h2o.automl import H2OAutoML
 from h2o.estimators.estimator_base import H2OEstimator
@@ -259,8 +258,8 @@ class _H2O3Model(Model):
         aml = h2o.automl.get_automl(model_id)
         return _H2O3Model(aml.leader)
 
-    @classmethod
-    def _decode_from_frame(cls, data) -> List[Tuple]:
+    @staticmethod
+    def _decode_from_frame(data) -> List[Tuple]:
         ret = []
         for row in data:
             values = [float(item) for item in row[1:]]
@@ -519,7 +518,7 @@ class _DAIModel(Model):
         return _DAIModel(endpoint_url)
 
     @staticmethod
-    def _encode_for_prediction(data: List[List]) -> Dict:
+    def _encode_from_data(data: List[List]) -> Dict:
         if len(data) < 2:
             raise ValueError('invalid input format')
 
@@ -529,17 +528,11 @@ class _DAIModel(Model):
         }
 
     @staticmethod
-    def _encode_from_df(df: dt.Frame) -> Dict:
-
-        def _handle_bool(x):
-            # Breaking a default Datatable behaviour
-            if isinstance(x, bool):
-                return 1 if x else 0
-            return x
-
+    def _encode_from_csv(csvfile: IO) -> Dict:
+        reader = csv.reader(csvfile)
         return {
-            'fields': list(df.names),
-            'rows': [[str(_handle_bool(item)) for item in row] for row in df.to_tuples()],
+            'fields': next(reader),
+            'rows': [row for row in reader],
         }
 
     @staticmethod
@@ -569,10 +562,10 @@ class _DAIModel(Model):
     def predict(self, data: Optional[List[List]] = None, file_path: str = '', **kwargs) -> List[Tuple]:
 
         if data is not None:
-            payload = self._encode_for_prediction(data)
+            payload = self._encode_from_data(data)
         elif file_path:
-            df = dt.fread(file_path)
-            payload = self._encode_from_df(df)
+            with open(file_path) as csvfile:
+                payload = self._encode_from_csv(csvfile)
         else:
             raise ValueError('no data input')
 
