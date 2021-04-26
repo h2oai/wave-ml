@@ -259,15 +259,19 @@ class _H2O3Model(Model):
         aml = h2o.automl.get_automl(model_id)
         return _H2O3Model(aml.leader)
 
+    @classmethod
+    def _decode_from_frame(cls, data) -> List[Tuple]:
+        ret = []
+        for row in data:
+            values = [float(item) for item in row[1:]]
+            ret.append(tuple([row[0], *values]))
+        return ret
+
     def predict(self, data: Optional[List[List]] = None, file_path: str = '', **kwargs) -> List[Tuple]:
         input_frame = self._create_h2o3_frame(data, file_path)
         output_frame = self.model.predict(input_frame)
-
-        with tempfile.TemporaryDirectory() as tmp_dir_name:
-            tmp_file_path = os.path.join(tmp_dir_name, _make_id() + '.csv')
-            h2o.download_csv(output_frame, tmp_file_path)
-            prediction = dt.fread(tmp_file_path)
-            return prediction.to_tuples()
+        data = output_frame.as_data_frame(use_pandas=False, header=False)
+        return self._decode_from_frame(data)
 
     @property
     def endpoint_url(self) -> Optional[str]:
