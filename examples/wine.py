@@ -30,7 +30,7 @@ async def serve(q: Q):
 
     # Prepare feature values or use default ones
     country = q.args.country or default_value['country']
-    price = float(q.args.price) if q.args.price else default_value['price']
+    price = q.args.price if q.args.price else default_value['price']
     province = q.args.province or default_value['province']
     region = q.args.region or default_value['region_1']
     variety = q.args.variety or default_value['variety']
@@ -39,7 +39,7 @@ async def serve(q: Q):
     # Prepare input data and do the predictions
     input_data = [features, [country, price, province, region, variety, winery]]
     rating = model.predict(input_data)
-    rating = rating[0][0]
+    rating = int(rating[0][0])
 
     # Initialize page with a layout
     if not q.client.initialized:
@@ -71,7 +71,7 @@ async def serve(q: Q):
             ui.dropdown(name='region', label='Region', value=region, trigger=True, choices=choices['region_1']),
             ui.dropdown(name='variety', label='Variety', value=variety, trigger=True, choices=choices['variety']),
             ui.dropdown(name='winery', label='Winery', value=winery, trigger=True, choices=choices['winery']),
-            ui.slider(name='price', label='Price in $', min=4, max=150, step=1, value=price, trigger=True),
+            ui.slider(name='price', label='Price in $', min=4, max=150, step=1, value=float(price), trigger=True),
         ])
         q.client.initialized = True
     else:
