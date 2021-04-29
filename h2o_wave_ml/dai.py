@@ -1,0 +1,334 @@
+# Copyright 2021 H2O.ai, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import csv
+import time
+from typing import Dict, Optional, List, Tuple, IO
+from urllib.parse import urljoin
+
+import driverlessai
+try:
+    import h2osteam
+    from h2osteam.clients import DriverlessClient, MultinodeClient
+    import mlops
+    from _mlops.deployer import exceptions as ml_excp
+except ModuleNotFoundError:
+    pass
+import requests
+
+from .config import _config
+from .types import Model, ModelType, ModelMetric, TaskType
+from .utils import _make_id, _remove_prefix, _is_steam_imported, _is_mlops_imported
+
+
+_INT_TO_CAT_THRESHOLD = 50
+_MLOPS_REFRESH_STATUS_INTERVAL = 1
+_MLOPS_MAX_WAIT_TIME = 300
+
+
+def _determine_task_type(summary) -> str:
+    if summary.data_type in ('int', 'real'):
+        if summary.unique > _INT_TO_CAT_THRESHOLD:
+            return 'regression'
+    return 'classification'
+
+
+def _make_project_id() -> str:
+    """Generates a random project id."""
+
+    u = _make_id()
+    return f'wave-ml-{u}'
+
+
+def _refresh_token(refresh_token: str, provider_url: str, client_id: str, client_secret: str) -> Tuple[str, str]:
+
+    provider_url = f'{provider_url}/' if not provider_url.endswith('/') else provider_url
+    r = requests.get(urljoin(provider_url, '.well-known/openid-configuration'))
+    r.raise_for_status()
+    conf_data = r.json()
+
+    token_endpoint_url = conf_data['token_endpoint']
+
+    payload = dict(
+        client_id=client_id,
+        client_secret=client_secret,
+        grant_type='refresh_token',
+        refresh_token=refresh_token,
+    )
+    r = requests.post(token_endpoint_url, data=payload)
+    r.raise_for_status()
+    token_data = r.json()
+    return token_data['access_token'], token_data['refresh_token']
+
+
+def _wait_for_deployment(mlops_client, deployment_id: str):
+
+    deadline = time.monotonic() + _MLOPS_MAX_WAIT_TIME
+
+    status = mlops_client.deployer.deployment_status.get_deployment_status(
+        mlops.DeployGetDeploymentStatusRequest(deployment_id=deployment_id)).deployment_status
+    while status.state != mlops.DeployDeploymentState.HEALTHY:
+        time.sleep(_MLOPS_REFRESH_STATUS_INTERVAL)
+        status = mlops_client.deployer.deployment_status.get_deployment_status(
+            mlops.DeployGetDeploymentStatusRequest(deployment_id=deployment_id)).deployment_status
+        if time.monotonic() > deadline:
+            raise RuntimeError('deployment timeout error')
+
+
+def _encode_from_data(data: List[List]) -> Dict:
+    if len(data) < 2:
+        raise ValueError('invalid input format')
+
+    return {
+        'fields': data[0],
+        'rows':  [[str(item) for item in row] for row in data[1:]],
+    }
+
+
+def _encode_from_csv(csvfile: IO) -> Dict:
+    reader = csv.reader(csvfile)
+    return {
+        'fields': next(reader),
+        'rows': [row for row in reader],
+    }
+
+
+def _extract_class(name: str) -> str:
+    """Extract a predicted class name from DAI column name.
+
+    Examples:
+        >>> _extract_class('target_column.class1')
+        'class1'
+
+    """
+
+    return name.split('.')[-1]
+
+
+def _decode_from_deployment(data) -> List[Tuple]:
+    names = [_extract_class(name) for name in data['fields']]
+
+    ret = []
+    for row in data['score']:
+        values = [float(item) for item in row]
+        index = values.index(max(values))
+        ret.append(tuple([names[index], *values]))
+
+    return ret
+
+
+class _DAIModel(Model):
+
+    _INSTANCE = None
+
+    def __init__(self, endpoint_url: str):
+        super().__init__(ModelType.DAI)
+        self._endpoint_url = endpoint_url
+
+    @classmethod
+    def _get_instance(cls, access_token: str = ''):
+        if cls._INSTANCE is None:
+            if _config.dai_address:
+                cls._INSTANCE = driverlessai.Client(address=_config.dai_address,
+                                                    username=_config.dai_username,
+                                                    password=_config.dai_password)
+            elif _config.steam_address:
+
+                if not _is_steam_imported():
+                    raise RuntimeError('no Steam package installed (install h2osteam)')
+
+                if _config.steam_refresh_token:
+                    h2osteam.login(url=_config.steam_address, refresh_token=_config.steam_refresh_token,
+                                   verify_ssl=_config.steam_verify_ssl)
+                elif access_token:
+                    h2osteam.login(url=_config.steam_address, access_token=access_token,
+                                   verify_ssl=_config.steam_verify_ssl)
+                else:
+                    raise RuntimeError('no Steam credentials')
+
+                if _config.steam_cluster_name:
+                    instance = MultinodeClient.get_cluster(name=_config.steam_cluster_name)
+                    if not instance.is_master_ready():
+                        raise RuntimeError('DAI master node not ready')
+                elif _config.steam_instance_name:
+                    instance = DriverlessClient.get_instance(name=_config.steam_instance_name)
+                    if instance.status() == 'stopped':
+                        raise RuntimeError('DAI instance not ready: stopped')
+                    elif instance.status() == 'failed':
+                        raise RuntimeError('DAI instance not ready: failed')
+                else:
+                    raise RuntimeError('no DAI resource specified')
+
+                cls._INSTANCE = instance.connect()
+            else:
+                raise RuntimeError('no backend service available')
+        return cls._INSTANCE
+
+    @classmethod
+    def _build_model(cls, file_path: str, target_column: str, model_metric: ModelMetric, task_type: Optional[TaskType],
+                     access_token: str, **kwargs):
+
+        dai = cls._get_instance(access_token)
+
+        dataset_id = _make_id()
+        dataset = dai.datasets.create(file_path, name=dataset_id)
+
+        try:
+            summary = dataset.column_summaries(columns=[target_column])[0]
+        except KeyError:
+            raise ValueError('no target column')
+
+        params = {
+            _remove_prefix(key, '_dai_'): kwargs[key]
+            for key in kwargs
+            if key in ('_dai_accuracy', '_dai_time', '_dai_interpretability')
+        }
+
+        if task_type is None:
+            task = _determine_task_type(summary)
+        else:
+            task = task_type.name.lower()
+
+        if model_metric != ModelMetric.AUTO:
+            params['scorer'] = model_metric.name
+
+        experiment = dai.experiments.create(
+            train_dataset=dataset,
+            target_column=target_column,
+            task=task,
+            **params,
+        )
+
+        return experiment
+
+    @classmethod
+    def _deploy_model(cls, experiment, access_token: str, deployment_env: str) -> str:
+
+        if not _is_mlops_imported():
+            raise RuntimeError('no MLOps package installed (install mlops)')
+
+        if not _config.mlops_gateway:
+            raise ValueError('no MLOps gateway specified')
+
+        dai = cls._get_instance()  # This instance should already by present.
+        prj = dai.projects.create(name=_make_project_id())
+        prj.link_experiment(experiment)
+
+        mlops_client = mlops.Client(gateway_url=_config.mlops_gateway,
+                                    token_provider=lambda: access_token)
+
+        # Fetch available deployment environments.
+        deployment_envs = mlops_client.storage.deployment_environment.list_deployment_environments(
+            mlops.StorageListDeploymentEnvironmentsRequest(prj.key))
+
+        # Look for the ID of the selected deployment environment
+        for env in deployment_envs.deployment_environment:
+            if env.display_name == deployment_env:
+                deployment_env_id = env.id
+                break
+        else:
+            raise ValueError('unknown deployment environment')
+
+        deployment = mlops_client.storage.deployment_environment.deploy(
+            mlops.StorageDeployRequest(
+                experiment_id=experiment.key,
+                deployment_environment_id=deployment_env_id,
+                type=mlops.StorageDeploymentType.SINGLE_MODEL,
+                metadata=mlops.StorageMetadata(
+                    values={"deploy/authentication/enabled": mlops.StorageValue(bool_value=False)}
+                ),
+            )
+        )
+
+        project_id = deployment.deployment.project_id
+        deployment_id = deployment.deployment.id
+
+        _wait_for_deployment(mlops_client, deployment_id)
+
+        statuses = mlops_client.deployer.deployment_status.list_deployment_statuses(
+            mlops.DeployListDeploymentStatusesRequest(project_id=project_id))
+        return statuses.deployment_status[0].scorer.score.url
+
+    @classmethod
+    def build(cls, file_path: str, target_column: str, model_metric: ModelMetric, task_type: Optional[TaskType],
+              access_token: str, refresh_token: str, **kwargs) -> Model:
+        """Builds DAI based model."""
+
+        if refresh_token:
+            access_token, refresh_token = _refresh_token(refresh_token, _config.oidc_provider_url,
+                                                         _config.oidc_client_id, _config.oidc_client_secret)
+
+        experiment = cls._build_model(file_path=file_path, target_column=target_column, model_metric=model_metric,
+                                      task_type=task_type, access_token=access_token, **kwargs)
+
+        if refresh_token:
+            access_token, refresh_token = _refresh_token(refresh_token, _config.oidc_provider_url,
+                                                         _config.oidc_client_id, _config.oidc_client_secret)
+        elif not access_token and not refresh_token:
+            raise ValueError('not token credentials for MLOps specified')
+
+        deployment_env = kwargs.get('_mlops_deployment_env', 'PROD')
+        endpoint_url = cls._deploy_model(experiment, access_token, deployment_env)
+
+        return _DAIModel(endpoint_url)
+
+    @classmethod
+    def get(cls, project_id: str, endpoint_url: str = '', access_token: str = '',
+            refresh_token: str = '') -> Optional[Model]:
+        """Retrieves a remote model given its ID."""
+
+        if endpoint_url:
+            return _DAIModel(endpoint_url)
+
+        if not _is_mlops_imported():
+            raise RuntimeError('no MLOps package installed (install mlops)')
+
+        if not _config.mlops_gateway:
+            raise ValueError('no MLOps gateway specified')
+
+        if refresh_token:
+            access_token, _ = _refresh_token(refresh_token, _config.oidc_provider_url,
+                                             _config.oidc_client_id, _config.oidc_client_secret)
+
+        mlops_client = mlops.Client(gateway_url=_config.mlops_gateway,
+                                    token_provider=lambda: access_token)
+
+        try:
+            statuses = mlops_client.deployer.deployment_status.list_deployment_statuses(
+                mlops.DeployListDeploymentStatusesRequest(project_id=project_id))
+        except ml_excp.ApiException:
+            return None
+
+        # There should be a strategy to pick the right deployment instead of picking a zeroth one.
+        endpoint_url = statuses.deployment_status[0].scorer.score.url
+
+        return _DAIModel(endpoint_url)
+
+    def predict(self, data: Optional[List[List]] = None, file_path: str = '', **kwargs) -> List[Tuple]:
+
+        if data is not None:
+            payload = _encode_from_data(data)
+        elif file_path:
+            with open(file_path) as csvfile:
+                payload = _encode_from_csv(csvfile)
+        else:
+            raise ValueError('no data input')
+
+        r = requests.post(self._endpoint_url, json=payload)
+        r.raise_for_status()
+        return _decode_from_deployment(r.json())
+
+    @property
+    def endpoint_url(self) -> Optional[str]:
+        return self._endpoint_url

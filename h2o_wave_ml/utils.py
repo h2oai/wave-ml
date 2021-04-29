@@ -12,16 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Python package `h2o_wave_ml` provides the API functions for automatic machine learning tasks.
-"""
+import sys
+import uuid
 
-from .ml import build_model, get_model, save_model, load_model
-from .types import Model, ModelType, ModelMetric, TaskType
 
-__pdoc__ = {
-    'config': False,
-    'dai': False,
-    'h2o3': False,
-    'utils': False,
-}
+def _make_id() -> str:
+    return str(uuid.uuid4())
+
+
+def _remove_prefix(text: str, prefix: str) -> str:
+    return text[text.startswith(prefix) and len(prefix):]
+
+
+def _is_package_imported(name: str) -> bool:
+    try:
+        sys.modules[name]
+    except KeyError:
+        return False
+    return True
+
+
+def _is_steam_imported() -> bool:
+    return _is_package_imported('h2osteam')
+
+
+def _is_mlops_imported() -> bool:
+    return _is_package_imported('mlops')
