@@ -109,7 +109,7 @@ class _H2O3Model(Model):
 
     @classmethod
     def build(cls, train_file_path: str, target_column: str, model_metric: ModelMetric, task_type: Optional[TaskType],
-              select_columns: Optional[List[str]], drop_columns: Optional[List[str]],
+              feature_columns: Optional[List[str]], drop_columns: Optional[List[str]],
               validation_file_path: Optional[str], **kwargs) -> Model:
         """Builds an H2O-3 based model."""
 
@@ -131,15 +131,15 @@ class _H2O3Model(Model):
         elif task_type == TaskType.CLASSIFICATION:
             train_frame[target_column] = train_frame[target_column].asfactor()
 
-        if select_columns is not None:
-            feature_columns = select_columns
+        if feature_columns is not None:
+            x = feature_columns
         elif drop_columns is not None:
-            feature_columns = [col for col in train_frame.columns if col not in drop_columns]
+            x = [col for col in train_frame.columns if col not in drop_columns]
         else:
-            feature_columns = train_frame.columns
+            x = train_frame.columns
 
-        if target_column in feature_columns:
-            feature_columns.remove(target_column)
+        if target_column in x:
+            x.remove(target_column)
 
         params = {
             _remove_prefix(key, '_h2o3_'): kwargs[key]
@@ -158,9 +158,9 @@ class _H2O3Model(Model):
             else:
                 raise ValueError('validation file not found')
 
-            aml.train(x=feature_columns, y=target_column, training_frame=train_frame, validation_frame=validation_frame)
+            aml.train(x=x, y=target_column, training_frame=train_frame, validation_frame=validation_frame)
         else:
-            aml.train(x=feature_columns, y=target_column, training_frame=train_frame)
+            aml.train(x=x, y=target_column, training_frame=train_frame)
 
         if aml.leader is None:
             raise ValueError('no model available')

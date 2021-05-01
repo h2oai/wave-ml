@@ -177,7 +177,7 @@ class _DAIModel(Model):
 
     @classmethod
     def _build_model(cls, train_file_path: str, target_column: str, model_metric: ModelMetric,
-                     task_type: Optional[TaskType], select_columns: Optional[List[str]],
+                     task_type: Optional[TaskType], feature_columns: Optional[List[str]],
                      drop_columns: Optional[List[str]], validation_file_path: Optional[str], access_token: str,
                      **kwargs):
 
@@ -211,8 +211,8 @@ class _DAIModel(Model):
 
             params['validation_dataset'] = validation_dataset
 
-        if select_columns is not None:
-            params['drop_columns'] = [col for col in train_dataset.columns if col not in select_columns]
+        if feature_columns is not None:
+            params['drop_columns'] = [col for col in train_dataset.columns if col not in feature_columns]
         elif drop_columns is not None:
             params['drop_columns'] = drop_columns
 
@@ -278,7 +278,7 @@ class _DAIModel(Model):
 
     @classmethod
     def build(cls, train_file_path: str, target_column: str, model_metric: ModelMetric, task_type: Optional[TaskType],
-              select_columns: Optional[List[str]], drop_columns: Optional[List[str]],
+              feature_columns: Optional[List[str]], drop_columns: Optional[List[str]],
               validation_file_path: Optional[str], access_token: str, refresh_token: str, **kwargs) -> Model:
         """Builds DAI based model."""
 
@@ -287,7 +287,7 @@ class _DAIModel(Model):
                                                          _config.oidc_client_id, _config.oidc_client_secret)
 
         experiment = cls._build_model(train_file_path=train_file_path, target_column=target_column,
-                                      model_metric=model_metric, task_type=task_type, select_columns=select_columns,
+                                      model_metric=model_metric, task_type=task_type, feature_columns=feature_columns,
                                       drop_columns=drop_columns, validation_file_path=validation_file_path,
                                       access_token=access_token, **kwargs)
 

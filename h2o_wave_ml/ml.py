@@ -24,7 +24,7 @@ from .types import Model, ModelMetric, ModelType, TaskType
 
 def build_model(train_file_path: str, *, target_column: str, model_metric: ModelMetric = ModelMetric.AUTO,
                 task_type: Optional[TaskType] = None, model_type: Optional[ModelType] = None,
-                select_columns: Optional[List[str]] = None, drop_columns: Optional[List[str]] = None,
+                feature_columns: Optional[List[str]] = None, drop_columns: Optional[List[str]] = None,
                 validation_file_path: Optional[str] = None, access_token: str = '', refresh_token: str = '',
                 **kwargs) -> Model:
     """Trains a model.
@@ -37,7 +37,7 @@ def build_model(train_file_path: str, *, target_column: str, model_metric: Model
         model_metric: Optional evaluation metric to be used for modeling.
         task_type: Optional task type. Will be automatically determined if it's not specified.
         model_type: Optional model type.
-        select_columns: Optional list of column names to be used for modeling.
+        feature_columns: Optional list of column names to be used for modeling.
         drop_columns: Optional list of column names to be dropped before modeling.
         validation_file_path: Optional path to a validation dataset.
         access_token: Optional access token if engine needs to be authenticated.
@@ -49,22 +49,22 @@ def build_model(train_file_path: str, *, target_column: str, model_metric: Model
 
     """
 
-    if select_columns is not None and drop_columns is not None:
-        raise ValueError('expected either `select_columns` or `drop_columns` args')
+    if feature_columns is not None and drop_columns is not None:
+        raise ValueError('expected either `feature_columns` or `drop_columns` args')
 
     if model_type is not None:
         if model_type == ModelType.H2O3:
-            return _H2O3Model.build(train_file_path, target_column, model_metric, task_type, select_columns,
+            return _H2O3Model.build(train_file_path, target_column, model_metric, task_type, feature_columns,
                                     drop_columns, validation_file_path, **kwargs)
         elif model_type == ModelType.DAI:
-            return _DAIModel.build(train_file_path, target_column, model_metric, task_type, select_columns,
+            return _DAIModel.build(train_file_path, target_column, model_metric, task_type, feature_columns,
                                    drop_columns, validation_file_path, access_token, refresh_token, **kwargs)
 
     if _config.dai_address or _config.steam_address:
-        return _DAIModel.build(train_file_path, target_column, model_metric, task_type, select_columns, drop_columns,
+        return _DAIModel.build(train_file_path, target_column, model_metric, task_type, feature_columns, drop_columns,
                                validation_file_path, access_token, refresh_token, **kwargs)
 
-    return _H2O3Model.build(train_file_path, target_column, model_metric, task_type, select_columns, drop_columns,
+    return _H2O3Model.build(train_file_path, target_column, model_metric, task_type, feature_columns, drop_columns,
                             validation_file_path, **kwargs)
 
 
