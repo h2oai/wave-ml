@@ -131,6 +131,24 @@ def _decode_from_deployment(data) -> List[Tuple]:
 class _DAIModel(Model):
 
     _INSTANCE = None
+    _SUPPORTED_PARAMS = [
+        '_dai_accuracy',
+        '_dai_time',
+        '_dai_interpretability',
+        '_dai_models',
+        '_dai_transformers',
+        '_dai_weight_column',
+        '_dai_fold_column',
+        '_dai_time_column',
+        '_dai_time_groups_columns',
+        '_dai_unavailable_at_prediction_time_columns',
+        '_dai_enable_gpus',
+        '_dai_reproducible',
+        '_dai_time_period_in_seconds',
+        '_dai_num_prediction_periods',
+        '_dai_num_gap_periods',
+        '_dai_config_overrides'
+    ]
 
     def __init__(self, endpoint_url: str):
         super().__init__(ModelType.DAI)
@@ -199,7 +217,7 @@ class _DAIModel(Model):
         params = {
             _remove_prefix(key, '_dai_'): kwargs[key]
             for key in kwargs
-            if key in ('_dai_accuracy', '_dai_time', '_dai_interpretability')
+            if key in cls._SUPPORTED_PARAMS
         }
 
         if model_metric != ModelMetric.AUTO:
