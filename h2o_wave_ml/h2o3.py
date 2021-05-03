@@ -108,13 +108,38 @@ class _H2O3Model(Model):
             cls._INIT = True
 
     @classmethod
-    def build(cls, file_path: str, target_column: str, model_metric: ModelMetric, task_type: Optional[TaskType],
-              **kwargs) -> Model:
+    def build(cls, train_file_path: str, target_column: str, model_metric: ModelMetric, task_type: Optional[TaskType],
+              feature_columns: Optional[List[str]], drop_columns: Optional[List[str]],
+              validation_file_path: Optional[str], **kwargs) -> Model:
         """Builds an H2O-3 based model."""
 
         cls.ensure()
 
         id_ = _make_project_id()
+
+        if os.path.exists(train_file_path):
+            train_frame = h2o.import_file(train_file_path)
+        else:
+            raise ValueError('train file not found')
+
+        if target_column not in train_frame.columns:
+            raise ValueError('target column not found')
+
+        if task_type is None:
+            if _is_classification_task(train_frame, target_column):
+                train_frame[target_column] = train_frame[target_column].asfactor()
+        elif task_type == TaskType.CLASSIFICATION:
+            train_frame[target_column] = train_frame[target_column].asfactor()
+
+        if feature_columns is not None:
+            x = feature_columns
+        elif drop_columns is not None:
+            x = [col for col in train_frame.columns if col not in drop_columns]
+        else:
+            x = train_frame.columns
+
+        if target_column in x:
+            x.remove(target_column)
 
         params = {
             _remove_prefix(key, '_h2o3_'): kwargs[key]
@@ -127,21 +152,15 @@ class _H2O3Model(Model):
                         sort_metric=model_metric.name,
                         **params)
 
-        if os.path.exists(file_path):
-            frame = h2o.import_file(file_path)
+        if validation_file_path is not None:
+            if os.path.exists(validation_file_path):
+                validation_frame = h2o.import_file(validation_file_path)
+            else:
+                raise ValueError('validation file not found')
+
+            aml.train(x=x, y=target_column, training_frame=train_frame, validation_frame=validation_frame)
         else:
-            raise ValueError('file not found')
-
-        if target_column not in frame.columns:
-            raise ValueError('target column not found')
-
-        if task_type is None:
-            if _is_classification_task(frame, target_column):
-                frame[target_column] = frame[target_column].asfactor()
-        elif task_type == TaskType.CLASSIFICATION:
-            frame[target_column] = frame[target_column].asfactor()
-
-        aml.train(y=target_column, training_frame=frame)
+            aml.train(x=x, y=target_column, training_frame=train_frame)
 
         if aml.leader is None:
             raise ValueError('no model available')

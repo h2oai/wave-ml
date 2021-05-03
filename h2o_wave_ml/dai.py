@@ -176,18 +176,25 @@ class _DAIModel(Model):
         return cls._INSTANCE
 
     @classmethod
-    def _build_model(cls, file_path: str, target_column: str, model_metric: ModelMetric, task_type: Optional[TaskType],
-                     access_token: str, **kwargs):
+    def _build_model(cls, train_file_path: str, target_column: str, model_metric: ModelMetric,
+                     task_type: Optional[TaskType], feature_columns: Optional[List[str]],
+                     drop_columns: Optional[List[str]], validation_file_path: Optional[str], access_token: str,
+                     **kwargs):
 
         dai = cls._get_instance(access_token)
 
-        dataset_id = _make_id()
-        dataset = dai.datasets.create(file_path, name=dataset_id)
+        train_dataset_id = _make_id()
+        train_dataset = dai.datasets.create(train_file_path, name=train_dataset_id)
 
         try:
-            summary = dataset.column_summaries(columns=[target_column])[0]
+            train_summary = train_dataset.column_summaries(columns=[target_column])[0]
         except KeyError:
-            raise ValueError('no target column')
+            raise ValueError('target column not found')
+
+        if task_type is None:
+            task = _determine_task_type(train_summary)
+        else:
+            task = task_type.name.lower()
 
         params = {
             _remove_prefix(key, '_dai_'): kwargs[key]
@@ -195,16 +202,25 @@ class _DAIModel(Model):
             if key in ('_dai_accuracy', '_dai_time', '_dai_interpretability')
         }
 
-        if task_type is None:
-            task = _determine_task_type(summary)
-        else:
-            task = task_type.name.lower()
-
         if model_metric != ModelMetric.AUTO:
             params['scorer'] = model_metric.name
 
+        if validation_file_path is not None:
+            validation_dataset_id = _make_id()
+            validation_dataset = dai.datasets.create(validation_file_path, name=validation_dataset_id)
+
+            params['validation_dataset'] = validation_dataset
+
+        if feature_columns is not None:
+            params['drop_columns'] = [col for col in train_dataset.columns if col not in feature_columns]
+        elif drop_columns is not None:
+            params['drop_columns'] = drop_columns
+
+        if target_column in params['drop_columns']:
+            params['drop_columns'].remove(target_column)
+
         experiment = dai.experiments.create(
-            train_dataset=dataset,
+            train_dataset=train_dataset,
             target_column=target_column,
             task=task,
             **params,
@@ -261,16 +277,19 @@ class _DAIModel(Model):
         return statuses.deployment_status[0].scorer.score.url
 
     @classmethod
-    def build(cls, file_path: str, target_column: str, model_metric: ModelMetric, task_type: Optional[TaskType],
-              access_token: str, refresh_token: str, **kwargs) -> Model:
+    def build(cls, train_file_path: str, target_column: str, model_metric: ModelMetric, task_type: Optional[TaskType],
+              feature_columns: Optional[List[str]], drop_columns: Optional[List[str]],
+              validation_file_path: Optional[str], access_token: str, refresh_token: str, **kwargs) -> Model:
         """Builds DAI based model."""
 
         if refresh_token:
             access_token, refresh_token = _refresh_token(refresh_token, _config.oidc_provider_url,
                                                          _config.oidc_client_id, _config.oidc_client_secret)
 
-        experiment = cls._build_model(file_path=file_path, target_column=target_column, model_metric=model_metric,
-                                      task_type=task_type, access_token=access_token, **kwargs)
+        experiment = cls._build_model(train_file_path=train_file_path, target_column=target_column,
+                                      model_metric=model_metric, task_type=task_type, feature_columns=feature_columns,
+                                      drop_columns=drop_columns, validation_file_path=validation_file_path,
+                                      access_token=access_token, **kwargs)
 
         if refresh_token:
             access_token, refresh_token = _refresh_token(refresh_token, _config.oidc_provider_url,
