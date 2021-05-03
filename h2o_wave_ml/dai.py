@@ -234,7 +234,7 @@ class _DAIModel(Model):
         elif drop_columns is not None:
             params['drop_columns'] = drop_columns
 
-        if target_column in params['drop_columns']:
+        if target_column in params.get('drop_columns', []):
             params['drop_columns'].remove(target_column)
 
         experiment = dai.experiments.create(
