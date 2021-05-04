@@ -37,15 +37,21 @@ def make_loading() -> List[ui.Component]:
     return [ui.progress(label='Building a model')]
 
 
-def show_body(q: Q, rating: int):
+def get_feature_values(q: Q):
 
-    # Prepare feature values or use default ones
     country = q.args.country or q.app.default_value['country']
     price = q.args.price if q.args.price else q.app.default_value['price']
     province = q.args.province or q.app.default_value['province']
     region = q.args.region or q.app.default_value['region_1']
     variety = q.args.variety or q.app.default_value['variety']
     winery = q.args.winery or q.app.default_value['winery']
+
+    return [country, price, province, region, variety, winery]
+
+
+def show_body(q: Q, rating: int):
+
+    [country, price, province, region, variety, winery] = get_feature_values(q)
 
     q.page['result'] = ui.tall_gauge_stat_card(
         box=ui.box('body', height='180px'),
@@ -66,16 +72,8 @@ def show_body(q: Q, rating: int):
 
 
 def predict(q: Q) -> int:
-
-    # Prepare feature values or use default ones
-    country = q.args.country or q.app.default_value['country']
-    price = q.args.price if q.args.price else q.app.default_value['price']
-    province = q.args.province or q.app.default_value['province']
-    region = q.args.region or q.app.default_value['region_1']
-    variety = q.args.variety or q.app.default_value['variety']
-    winery = q.args.winery or q.app.default_value['winery']
-
-    input_data = [FEATURES, [country, price, province, region, variety, winery]]
+    values = get_feature_values(q)
+    input_data = [FEATURES, values]
     rating = q.client.model.predict(input_data)
     return int(rating[0][0])
 
@@ -90,6 +88,7 @@ async def train(q: Q):
 
     q.client.model = model
     rating = predict(q)
+    q.page['model'].items = make_load_form(textbox_value=model.endpoint_url)
     show_body(q, rating)
 
 
