@@ -195,9 +195,9 @@ class _DAIModel(Model):
 
     @classmethod
     def _build_model(cls, train_file_path: str, target_column: str, model_metric: ModelMetric,
-                     task_type: Optional[TaskType], feature_columns: Optional[List[str]],
-                     drop_columns: Optional[List[str]], validation_file_path: Optional[str], access_token: str,
-                     **kwargs):
+                     task_type: Optional[TaskType], categorical_columns: Optional[List[str]],
+                     feature_columns: Optional[List[str]], drop_columns: Optional[List[str]],
+                     validation_file_path: Optional[str], access_token: str, **kwargs):
 
         dai = cls._get_instance(access_token)
 
@@ -214,6 +214,12 @@ class _DAIModel(Model):
         else:
             task = task_type.name.lower()
 
+        column_types = {}
+        if categorical_columns is not None:
+            for column in categorical_columns:
+                column_types[column] = 'categorical'
+            train_dataset.set_logical_types(column_types)
+
         params = {
             _remove_prefix(key, '_dai_'): kwargs[key]
             for key in kwargs
@@ -226,6 +232,9 @@ class _DAIModel(Model):
         if validation_file_path is not None:
             validation_dataset_id = _make_id()
             validation_dataset = dai.datasets.create(validation_file_path, name=validation_dataset_id)
+
+            if categorical_columns is not None:
+                validation_dataset.set_logical_types(column_types)
 
             params['validation_dataset'] = validation_dataset
 
@@ -296,8 +305,9 @@ class _DAIModel(Model):
 
     @classmethod
     def build(cls, train_file_path: str, target_column: str, model_metric: ModelMetric, task_type: Optional[TaskType],
-              feature_columns: Optional[List[str]], drop_columns: Optional[List[str]],
-              validation_file_path: Optional[str], access_token: str, refresh_token: str, **kwargs) -> Model:
+              categorical_columns: Optional[List[str]], feature_columns: Optional[List[str]],
+              drop_columns: Optional[List[str]], validation_file_path: Optional[str], access_token: str,
+              refresh_token: str, **kwargs) -> Model:
         """Builds DAI based model."""
 
         if refresh_token:
@@ -305,7 +315,8 @@ class _DAIModel(Model):
                                                          _config.oidc_client_id, _config.oidc_client_secret)
 
         experiment = cls._build_model(train_file_path=train_file_path, target_column=target_column,
-                                      model_metric=model_metric, task_type=task_type, feature_columns=feature_columns,
+                                      model_metric=model_metric, task_type=task_type,
+                                      categorical_columns=categorical_columns, feature_columns=feature_columns,
                                       drop_columns=drop_columns, validation_file_path=validation_file_path,
                                       access_token=access_token, **kwargs)
 
