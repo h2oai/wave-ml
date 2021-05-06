@@ -9,7 +9,7 @@ import datatable as dt
 from h2o_wave import main, app, Q, ui
 from h2o_wave_ml import build_model
 
-dataset = './examples/quickstart-cloud-app/winemag_edit.csv'
+dataset = './examples/wine-cloud-app/winemag_edit.csv'
 
 model = build_model(dataset, target_column='points')
 
