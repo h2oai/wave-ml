@@ -1,4 +1,3 @@
 datatable
 h2o_wave
-h2o_wave_ml
 sklearn
