@@ -7,7 +7,7 @@ from h2o_wave import main, app, Q, ui
 from h2o_wave_ml import build_model, save_model, load_model
 from sklearn.metrics import confusion_matrix
 
-dataset = './titanic.csv'
+dataset = './examples/quickstart-cloud-app/titanic.csv'
 target_column = 'Survived'
 
 model = build_model(dataset, target_column=target_column)
