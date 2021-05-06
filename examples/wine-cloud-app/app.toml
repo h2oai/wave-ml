@@ -1,0 +1,29 @@
+[App]
+Name = "ai.h2o.wave.ml.wine"
+Version = "0.0.1"
+Title = "Wine Rating Prediction"
+Description = ""
+Category = "Other"
+Keywords = ["waveml", "automl"]
+
+[Runtime]
+Module = "run"
+EnableOIDC = true
+
+[[Env]]
+Name = "H2O_WAVE_ML_STEAM_INSTANCE_NAME"
+Value = "peto-dai"
+
+[[Env]]
+Name = "H2O_WAVE_ML_STEAM_VERIFY_SSL"
+Value = "False"
+
+[[Env]]
+Name = "H2O_WAVE_ML_MLOPS_GATEWAY"
+Secret = "h2oai-mlops"
+SecretKey = "gateway"
+
+[[Env]]
+Name = "H2O_WAVE_ML_STEAM_ADDRESS"
+Secret = "h2oai-steam"
+SecretKey = "api"
