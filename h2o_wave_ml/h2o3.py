@@ -109,8 +109,8 @@ class _H2O3Model(Model):
 
     @classmethod
     def build(cls, train_file_path: str, target_column: str, model_metric: ModelMetric, task_type: Optional[TaskType],
-              feature_columns: Optional[List[str]], drop_columns: Optional[List[str]],
-              validation_file_path: Optional[str], **kwargs) -> Model:
+              categorical_columns: Optional[List[str]], feature_columns: Optional[List[str]],
+              drop_columns: Optional[List[str]], validation_file_path: Optional[str], **kwargs) -> Model:
         """Builds an H2O-3 based model."""
 
         cls.ensure()
@@ -130,6 +130,10 @@ class _H2O3Model(Model):
                 train_frame[target_column] = train_frame[target_column].asfactor()
         elif task_type == TaskType.CLASSIFICATION:
             train_frame[target_column] = train_frame[target_column].asfactor()
+
+        if categorical_columns is not None:
+            for column in categorical_columns:
+                train_frame[column] = train_frame[column].asfactor()
 
         if feature_columns is not None:
             x = feature_columns
@@ -157,6 +161,10 @@ class _H2O3Model(Model):
                 validation_frame = h2o.import_file(validation_file_path)
             else:
                 raise ValueError('validation file not found')
+
+            if categorical_columns is not None:
+                for column in categorical_columns:
+                    validation_frame[column] = validation_frame[column].asfactor()
 
             aml.train(x=x, y=target_column, training_frame=train_frame, validation_frame=validation_frame)
         else:
