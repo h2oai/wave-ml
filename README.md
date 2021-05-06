@@ -107,12 +107,9 @@ The environment variables ensure the correct behaviour of a function calls behin
 - `H2O_WAVE_OIDC_CLIENT_ID`, OIDC client ID.
 - `H2O_WAVE_OIDC_CLIENT_SECRET`, OIDC client secret.
 
-## Development setup
+## Development Setup
 
-A python of version `3.6.1` or greater is required.
-
-1. Clone repo
-2. Type `make setup`
+Check a Wiki for a [guide](https://github.com/h2oai/wave-ml/wiki/Developer).
 
 ## License
 
