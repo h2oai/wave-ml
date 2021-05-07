@@ -45,6 +45,51 @@ def build_model(train_file_path: str, *, target_column: str, model_metric: Model
         refresh_token: Optional refresh token if model needs to be authenticated.
         kwargs: Optional parameters to be passed to the model builder.
 
+    Kwargs:
+
+        The list of the supported DAI parameters. The description can be found [here](http://docs.h2o.ai/driverless-ai/pyclient/docs/html/client.html).
+
+        *_dai_accuracy*<br />
+        *_dai_time*<br />
+        *_dai_interpretability*<br />
+        *_dai_models*<br />
+        *_dai_transformers*<br />
+        *_dai_weight_column*<br />
+        *_dai_fold_column*<br />
+        *_dai_time_column*<br />
+        *_dai_time_groups_columns*<br />
+        *_dai_unavailable_at_prediction_time_columns*<br />
+        *_dai_enable_gpus*<br />
+        *_dai_reproducible*<br />
+        *_dai_time_period_in_seconds*<br />
+        *_dai_num_prediction_periods*<br />
+        *_dai_num_gap_periods*<br />
+        *_dai_config_overrides*<br />
+
+        The list of the supported H2O-3 parameters. The description can be found [here](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/automl.html#required-parameters).
+
+        [*_h2o3_max_runtime_secs*](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/algo-params/max_runtime_secs.html)<br />
+        [*_h2o3_max_models*](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/algo-params/max_models.html)<br />
+        [*_h2o3_nfolds*](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/algo-params/nfolds.html)<br />
+        [*_h2o3_balance_classes*](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/algo-params/balance_classes.html)<br />
+        [*_h2o3_class_sampling_factors*](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/algo-params/class_sampling_factors.html)<br />
+        [*_h2o3_max_after_balance_size*](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/algo-params/max_after_balance_size.html)<br />
+        [*_h2o3_max_runtime_secs_per_model*](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/algo-params/max_runtime_secs_per_model.html)<br />
+        [*_h2o3_stopping_tolerance*](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/algo-params/stopping_tolerance.html)<br />
+        [*_h2o3_stopping_rounds*](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/algo-params/stopping_rounds.html)<br />
+        [*_h2o3_seed*](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/algo-params/seed.html)<br />
+        [*_h2o3_exclude_algos*](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/algo-params/exclude_algos.html)<br />
+        [*_h2o3_include_algos*](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/algo-params/include_algos.html)<br />
+        *_h2o3_modeling_plan*<br />
+        *_h2o3_preprocessing*<br />
+        *_h2o3_exploitation_ratio*<br />
+        [*_h2o3_monotone_constraints*](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/algo-params/monotone_constraints.html)<br />
+        [*_h2o3_keep_cross_validation_predictions*](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/algo-params/keep_cross_validation_predictions.html)<br />
+        [*_h2o3_keep_cross_validation_models*](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/algo-params/keep_cross_validation_models.html)<br />
+        [*_h2o3_keep_cross_validation_fold_assignment*](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/algo-params/keep_cross_validation_fold_assignment.html)<br />
+        *_h2o3_verbosity*<br />
+        [*_h2o3_export_checkpoints_dir*](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/algo-params/export_checkpoints_dir.html)<br />
+
     Returns:
         The Wave model.
 

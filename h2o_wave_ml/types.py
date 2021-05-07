@@ -18,6 +18,8 @@ from typing import Optional, List, Tuple
 
 
 class ModelMetric(Enum):
+    """Determines a metric type."""
+
     AUTO = 1
     AUC = 2
     MSE = 3
@@ -33,11 +35,15 @@ class ModelMetric(Enum):
 
 
 class ModelType(Enum):
+    """Determines a type of the model backend."""
+
     H2O3 = 1
     DAI = 2
 
 
 class TaskType(Enum):
+    """Determines a machine learning task type."""
+
     CLASSIFICATION = 1
     REGRESSION = 2
 
