@@ -19,7 +19,7 @@ with open('DESCRIPTION.md', 'r') as fh:
 
 setuptools.setup(
     name='h2o_wave_ml',
-    version='0.5.0',
+    version='0.6.0',
     author='H2O.ai',
     author_email='support@h2o.ai',
     description='AutoML for Wave Apps',
