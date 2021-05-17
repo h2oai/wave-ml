@@ -14,7 +14,13 @@
 
 import abc
 from enum import Enum
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Any, Union
+
+try:
+    import pandas
+    PandasDataFrame = pandas.DataFrame
+except ModuleNotFoundError:
+    PandasDataFrame = Any
 
 
 class ModelMetric(Enum):
@@ -56,12 +62,14 @@ class Model(abc.ABC):
         """A Wave model engine type."""
 
     @abc.abstractmethod
-    def predict(self, data: Optional[List[List]] = None, file_path: str = '', **kwargs) -> List[Tuple]:
+    def predict(self, data: Optional[List[List]] = None, file_path: str = '',
+                pandas_df: Optional[PandasDataFrame] = None, **kwargs) -> List[Tuple]:
         """Returns the model's predictions for the given input rows.
 
         Args:
             data: A list of rows of column values. First row has to contain the column headers.
             file_path: The file path to the dataset.
+            pandas_df: Pandas DataFrame.
 
         Returns:
             A list of tuples representing predicted values.

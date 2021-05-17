@@ -19,21 +19,23 @@ import h2o
 from .config import _config
 from .dai import _DAIModel
 from .h2o3 import _H2O3Model
-from .types import Model, ModelMetric, ModelType, TaskType
+from .types import Model, ModelMetric, ModelType, TaskType, PandasDataFrame
 
 
-def build_model(train_file_path: str, *, target_column: str, model_metric: ModelMetric = ModelMetric.AUTO,
-                task_type: Optional[TaskType] = None, model_type: Optional[ModelType] = None,
-                categorical_columns: Optional[List[str]] = None, feature_columns: Optional[List[str]] = None,
-                drop_columns: Optional[List[str]] = None, validation_file_path: Optional[str] = None,
-                access_token: str = '', refresh_token: str = '', **kwargs) -> Model:
+def build_model(*, target_column: str, train_file_path: str = '', pandas_df: Optional[PandasDataFrame] = None,
+                model_metric: ModelMetric = ModelMetric.AUTO, task_type: Optional[TaskType] = None,
+                model_type: Optional[ModelType] = None, categorical_columns: Optional[List[str]] = None,
+                feature_columns: Optional[List[str]] = None, drop_columns: Optional[List[str]] = None,
+                validation_file_path: Optional[str] = None, access_token: str = '',
+                refresh_token: str = '', **kwargs) -> Model:
     """Trains a model.
 
     If `model_type` is not specified, it is inferred from the current environment. Defaults to an H2O-3 model.
 
     Args:
-        train_file_path: The path to the training dataset.
         target_column: The name of the target column (the column to be predicted).
+        train_file_path: The path to the training dataset.
+        pandas_df: Pandas DataFrame as a training set instead of file.
         model_metric: Optional evaluation metric to be used for modeling.
         task_type: Optional task type. Will be automatically determined if it's not specified.
         model_type: Optional model type.
@@ -100,20 +102,20 @@ def build_model(train_file_path: str, *, target_column: str, model_metric: Model
 
     if model_type is not None:
         if model_type == ModelType.H2O3:
-            return _H2O3Model.build(train_file_path, target_column, model_metric, task_type, categorical_columns,
-                                    feature_columns, drop_columns, validation_file_path, **kwargs)
+            return _H2O3Model.build(train_file_path, pandas_df, target_column, model_metric, task_type,
+                                    categorical_columns, feature_columns, drop_columns, validation_file_path, **kwargs)
         elif model_type == ModelType.DAI:
-            return _DAIModel.build(train_file_path, target_column, model_metric, task_type, categorical_columns,
-                                   feature_columns, drop_columns, validation_file_path, access_token, refresh_token,
-                                   **kwargs)
+            return _DAIModel.build(train_file_path, pandas_df, target_column, model_metric, task_type,
+                                   categorical_columns, feature_columns, drop_columns, validation_file_path,
+                                   access_token, refresh_token, **kwargs)
 
     if _config.dai_address or _config.steam_address:
-        return _DAIModel.build(train_file_path, target_column, model_metric, task_type, categorical_columns,
+        return _DAIModel.build(train_file_path, pandas_df, target_column, model_metric, task_type, categorical_columns,
                                feature_columns, drop_columns, validation_file_path, access_token, refresh_token,
                                **kwargs)
 
-    return _H2O3Model.build(train_file_path, target_column, model_metric, task_type, categorical_columns, feature_columns,
-                            drop_columns, validation_file_path, **kwargs)
+    return _H2O3Model.build(train_file_path, pandas_df, target_column, model_metric, task_type, categorical_columns,
+                            feature_columns, drop_columns, validation_file_path, **kwargs)
 
 
 def get_model(model_id: str = '', endpoint_url: str = '', model_type: Optional[ModelType] = None,

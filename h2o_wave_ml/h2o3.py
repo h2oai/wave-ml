@@ -20,7 +20,7 @@ from h2o.automl import H2OAutoML
 from h2o.estimators.estimator_base import H2OEstimator
 
 from .config import _config
-from .types import Model, ModelType, ModelMetric, TaskType
+from .types import Model, ModelType, ModelMetric, TaskType, PandasDataFrame
 from .utils import _make_id, _remove_prefix
 
 
@@ -38,9 +38,12 @@ def _is_classification_task(frame: h2o.H2OFrame, target: str) -> bool:
     return False
 
 
-def _create_h2o3_frame(data: Optional[List[List]] = None, file_path: str = '') -> h2o.H2OFrame:
+def _create_h2o3_frame(data: Optional[List[List]] = None, file_path: str = '',
+                       pandas_df: Optional[PandasDataFrame] = None) -> h2o.H2OFrame:
     if data is not None:
         return h2o.H2OFrame(python_obj=data, header=1)
+    elif pandas_df is not None:
+        return h2o.H2OFrame(python_obj=pandas_df)
     elif file_path:
         if os.path.exists(file_path):
             return h2o.import_file(file_path)
@@ -108,19 +111,22 @@ class _H2O3Model(Model):
             cls._INIT = True
 
     @classmethod
-    def build(cls, train_file_path: str, target_column: str, model_metric: ModelMetric, task_type: Optional[TaskType],
-              categorical_columns: Optional[List[str]], feature_columns: Optional[List[str]],
-              drop_columns: Optional[List[str]], validation_file_path: Optional[str], **kwargs) -> Model:
+    def build(cls, train_file_path: str, pandas_df: Optional[PandasDataFrame], target_column: str,
+              model_metric: ModelMetric, task_type: Optional[TaskType], categorical_columns: Optional[List[str]],
+              feature_columns: Optional[List[str]], drop_columns: Optional[List[str]],
+              validation_file_path: Optional[str], **kwargs) -> Model:
         """Builds an H2O-3 based model."""
 
         cls.ensure()
 
         id_ = _make_project_id()
 
-        if os.path.exists(train_file_path):
+        if train_file_path and os.path.exists(train_file_path):
             train_frame = h2o.import_file(train_file_path)
+        elif pandas_df:
+            train_frame = h2o.H2OFrame(python_obj=pandas_df)
         else:
-            raise ValueError('train file not found')
+            raise ValueError('train frame not supplied')
 
         if target_column not in train_frame.columns:
             raise ValueError('target column not found')
@@ -184,8 +190,9 @@ class _H2O3Model(Model):
         aml = h2o.automl.get_automl(model_id)
         return _H2O3Model(aml.leader)
 
-    def predict(self, data: Optional[List[List]] = None, file_path: str = '', **kwargs) -> List[Tuple]:
-        input_frame = _create_h2o3_frame(data, file_path)
+    def predict(self, data: Optional[List[List]] = None, file_path: str = '',
+                pandas_df: Optional[PandasDataFrame] = None, **kwargs) -> List[Tuple]:
+        input_frame = _create_h2o3_frame(data, file_path, pandas_df)
         output_frame = self.model.predict(input_frame)
         data = output_frame.as_data_frame(use_pandas=False, header=False)
         return _decode_from_frame(data)
