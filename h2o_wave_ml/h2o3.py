@@ -133,7 +133,7 @@ class _H2O3Model(Model):
 
         if categorical_columns is not None:
             for column in categorical_columns:
-                train_frame[column] = train_frame[column].asfactor()
+                train_frame[column] = train_frame[column].ascharacter().asfactor()
 
         if feature_columns is not None:
             x = feature_columns
@@ -164,7 +164,7 @@ class _H2O3Model(Model):
 
             if categorical_columns is not None:
                 for column in categorical_columns:
-                    validation_frame[column] = validation_frame[column].asfactor()
+                    validation_frame[column] = validation_frame[column].ascharacter().asfactor()
 
             aml.train(x=x, y=target_column, training_frame=train_frame, validation_frame=validation_frame)
         else:
