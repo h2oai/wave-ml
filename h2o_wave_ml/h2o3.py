@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
+from pathlib import Path
 from typing import Optional, List, Tuple
 
 import h2o
@@ -39,13 +39,13 @@ def _is_classification_task(frame: h2o.H2OFrame, target: str) -> bool:
 
 
 def _create_h2o3_frame(data: Optional[List[List]] = None, file_path: str = '',
-                       pandas_df: Optional[PandasDataFrame] = None) -> h2o.H2OFrame:
+                       df: Optional[PandasDataFrame] = None) -> h2o.H2OFrame:
     if data is not None:
         return h2o.H2OFrame(python_obj=data, header=1)
-    elif pandas_df is not None:
-        return h2o.H2OFrame(python_obj=pandas_df)
+    elif df is not None:
+        return h2o.H2OFrame(python_obj=df)
     elif file_path:
-        if os.path.exists(file_path):
+        if Path(file_path).exists():
             return h2o.import_file(file_path)
         else:
             raise ValueError('file not found')
@@ -111,22 +111,25 @@ class _H2O3Model(Model):
             cls._INIT = True
 
     @classmethod
-    def build(cls, train_file_path: str, pandas_df: Optional[PandasDataFrame], target_column: str,
+    def build(cls, train_file_path: str, train_df: Optional[PandasDataFrame], target_column: str,
               model_metric: ModelMetric, task_type: Optional[TaskType], categorical_columns: Optional[List[str]],
               feature_columns: Optional[List[str]], drop_columns: Optional[List[str]],
-              validation_file_path: Optional[str], **kwargs) -> Model:
+              validation_file_path: str, validation_df: Optional[PandasDataFrame], **kwargs) -> Model:
         """Builds an H2O-3 based model."""
 
         cls.ensure()
 
         id_ = _make_project_id()
 
-        if train_file_path and os.path.exists(train_file_path):
-            train_frame = h2o.import_file(train_file_path)
-        elif pandas_df:
-            train_frame = h2o.H2OFrame(python_obj=pandas_df)
+        if train_file_path:
+            if Path(train_file_path).exists():
+                train_frame = h2o.import_file(train_file_path)
+            else:
+                raise ValueError('train file not found')
+        elif train_df:
+            train_frame = h2o.H2OFrame(python_obj=train_df)
         else:
-            raise ValueError('train frame not supplied')
+            raise ValueError('train data not supplied')
 
         if target_column not in train_frame.columns:
             raise ValueError('target column not found')
@@ -162,19 +165,20 @@ class _H2O3Model(Model):
                         sort_metric=model_metric.name,
                         **params)
 
-        if validation_file_path is not None:
-            if os.path.exists(validation_file_path):
+        validation_frame = None
+        if validation_file_path:
+            if Path(validation_file_path).exists():
                 validation_frame = h2o.import_file(validation_file_path)
             else:
                 raise ValueError('validation file not found')
+        elif validation_df is not None:
+            validation_frame = h2o.H2OFrame(python_obj=validation_df)
 
-            if categorical_columns is not None:
-                for column in categorical_columns:
-                    validation_frame[column] = validation_frame[column].ascharacter().asfactor()
+        if validation_frame is not None and categorical_columns is not None:
+            for column in categorical_columns:
+                validation_frame[column] = validation_frame[column].ascharacter().asfactor()
 
-            aml.train(x=x, y=target_column, training_frame=train_frame, validation_frame=validation_frame)
-        else:
-            aml.train(x=x, y=target_column, training_frame=train_frame)
+        aml.train(x=x, y=target_column, training_frame=train_frame, validation_frame=validation_frame)
 
         if aml.leader is None:
             raise ValueError('no model available')
@@ -191,8 +195,8 @@ class _H2O3Model(Model):
         return _H2O3Model(aml.leader)
 
     def predict(self, data: Optional[List[List]] = None, file_path: str = '',
-                pandas_df: Optional[PandasDataFrame] = None, **kwargs) -> List[Tuple]:
-        input_frame = _create_h2o3_frame(data, file_path, pandas_df)
+                train_df: Optional[PandasDataFrame] = None, **kwargs) -> List[Tuple]:
+        input_frame = _create_h2o3_frame(data, file_path, train_df)
         output_frame = self.model.predict(input_frame)
         data = output_frame.as_data_frame(use_pandas=False, header=False)
         return _decode_from_frame(data)
