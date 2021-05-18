@@ -30,6 +30,7 @@ def build_model(*, target_column: str, train_file_path: str = '', train_df: Opti
                 access_token: str = '', refresh_token: str = '', **kwargs) -> Model:
     """Trains a model.
 
+    The function has to be called with `target_column` and `train_file_path` or `train_df` at least to be functionable.
     If `model_type` is not specified, it is inferred from the current environment. Defaults to an H2O-3 model.
 
     Args:
