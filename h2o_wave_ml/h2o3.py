@@ -195,8 +195,8 @@ class _H2O3Model(Model):
         return _H2O3Model(aml.leader)
 
     def predict(self, data: Optional[List[List]] = None, file_path: str = '',
-                train_df: Optional[PandasDataFrame] = None, **kwargs) -> List[Tuple]:
-        input_frame = _create_h2o3_frame(data, file_path, train_df)
+                test_df: Optional[PandasDataFrame] = None, **kwargs) -> List[Tuple]:
+        input_frame = _create_h2o3_frame(data, file_path, test_df)
         output_frame = self.model.predict(input_frame)
         data = output_frame.as_data_frame(use_pandas=False, header=False)
         return _decode_from_frame(data)

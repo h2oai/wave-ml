@@ -63,13 +63,13 @@ class Model(abc.ABC):
 
     @abc.abstractmethod
     def predict(self, data: Optional[List[List]] = None, file_path: str = '',
-                train_df: Optional[PandasDataFrame] = None, **kwargs) -> List[Tuple]:
+                test_df: Optional[PandasDataFrame] = None, **kwargs) -> List[Tuple]:
         """Returns the model's predictions for the given input rows.
 
         Args:
             data: A list of rows of column values. First row has to contain the column headers.
             file_path: The file path to the dataset.
-            train_df: Pandas DataFrame.
+            test_df: Pandas DataFrame.
 
         Returns:
             A list of tuples representing predicted values.

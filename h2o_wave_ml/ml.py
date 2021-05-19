@@ -44,7 +44,7 @@ def build_model(*, target_column: str, train_file_path: str = '', train_df: Opti
         feature_columns: Optional list of column names to be used for modeling.
         drop_columns: Optional list of column names to be dropped before modeling.
         validation_file_path: Optional path to a validation dataset.
-        validation_df: Optional DatataFrame to a validation dataset.
+        validation_df: Optional Pandas DataFrame as a validation dataset.
         access_token: Optional access token if engine needs to be authenticated.
         refresh_token: Optional refresh token if model needs to be authenticated.
         kwargs: Optional parameters to be passed to the model builder.

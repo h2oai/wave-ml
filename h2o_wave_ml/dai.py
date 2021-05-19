@@ -387,12 +387,12 @@ class _DAIModel(Model):
         return _DAIModel(endpoint_url)
 
     def predict(self, data: Optional[List[List]] = None, file_path: str = '',
-                train_df: Optional[PandasDataFrame] = None, **kwargs) -> List[Tuple]:
+                test_df: Optional[PandasDataFrame] = None, **kwargs) -> List[Tuple]:
 
         if data is not None:
             payload = _encode_from_data(data)
-        elif train_df is not None:
-            payload = _encode_from_pandas(train_df)
+        elif test_df is not None:
+            payload = _encode_from_pandas(test_df)
         elif file_path:
             with open(file_path) as csvfile:
                 payload = _encode_from_csv(csvfile)
