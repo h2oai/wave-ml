@@ -10,7 +10,7 @@ from sklearn.metrics import confusion_matrix
 dataset = './examples/quickstart-cloud-app/titanic.csv'
 target_column = 'Survived'
 
-model = build_model(dataset, target_column=target_column)
+model = build_model(train_file_path=dataset, target_column=target_column)
 prediction = model.predict(file_path=dataset)
 
 # Prepare the actual values from target_column

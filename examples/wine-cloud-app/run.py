@@ -83,7 +83,7 @@ async def train(q: Q):
     q.page['model'].items = make_loading()
     await q.page.save()
 
-    model = build_model(DATASET, target_column=TARGET_COLUMN, _dai_time=1, _dai_accuracy=1,
+    model = build_model(train_file_path=DATASET, target_column=TARGET_COLUMN, _dai_time=1, _dai_accuracy=1,
                         _dai_interpretability=10, refresh_token=q.auth.refresh_token)
 
     q.client.model = model

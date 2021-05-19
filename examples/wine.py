@@ -11,7 +11,7 @@ from h2o_wave_ml import build_model
 
 dataset = './examples/wine-cloud-app/winemag_edit.csv'
 
-model = build_model(dataset, target_column='points')
+model = build_model(train_file_path=dataset, target_column='points')
 
 df = dt.fread(dataset)
 
