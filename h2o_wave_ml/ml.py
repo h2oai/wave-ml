@@ -47,7 +47,7 @@ def build_model(*, target_column: str, train_file_path: str = '', train_df: Opti
         validation_df: Optional Pandas DataFrame as a validation dataset.
         access_token: Optional access token if engine needs to be authenticated.
         refresh_token: Optional refresh token if model needs to be authenticated.
-        kwargs: Optional parameters to be passed to the model builder.
+        kwargs: Optional parameters to be passed to the model builder or Steam.
 
     Kwargs:
 
@@ -93,6 +93,15 @@ def build_model(*, target_column: str, train_file_path: str = '', train_df: Opti
         [*_h2o3_keep_cross_validation_fold_assignment*](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/algo-params/keep_cross_validation_fold_assignment.html)<br />
         *_h2o3_verbosity*<br />
         [*_h2o3_export_checkpoints_dir*](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/algo-params/export_checkpoints_dir.html)<br />
+
+        The list of the supported Steam options.
+
+        *_steam_dai_instance_name*<br />
+        *_steam_dai_multinode_name*<br />
+
+        The list of the supported MLOps options.
+
+        *_mlops_deployment_env*<br />
 
     Returns:
         The Wave model.
