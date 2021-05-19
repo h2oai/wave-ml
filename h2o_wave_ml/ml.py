@@ -19,21 +19,24 @@ import h2o
 from .config import _config
 from .dai import _DAIModel
 from .h2o3 import _H2O3Model
-from .types import Model, ModelMetric, ModelType, TaskType
+from .types import Model, ModelMetric, ModelType, TaskType, PandasDataFrame
 
 
-def build_model(train_file_path: str, *, target_column: str, model_metric: ModelMetric = ModelMetric.AUTO,
-                task_type: Optional[TaskType] = None, model_type: Optional[ModelType] = None,
-                categorical_columns: Optional[List[str]] = None, feature_columns: Optional[List[str]] = None,
-                drop_columns: Optional[List[str]] = None, validation_file_path: Optional[str] = None,
+def build_model(*, target_column: str, train_file_path: str = '', train_df: Optional[PandasDataFrame] = None,
+                model_metric: ModelMetric = ModelMetric.AUTO, task_type: Optional[TaskType] = None,
+                model_type: Optional[ModelType] = None, categorical_columns: Optional[List[str]] = None,
+                feature_columns: Optional[List[str]] = None, drop_columns: Optional[List[str]] = None,
+                validation_file_path: str = '', validation_df: Optional[PandasDataFrame] = None,
                 access_token: str = '', refresh_token: str = '', **kwargs) -> Model:
     """Trains a model.
 
+    The function has to be called with `target_column` and `train_file_path` or `train_df` at least to be functionable.
     If `model_type` is not specified, it is inferred from the current environment. Defaults to an H2O-3 model.
 
     Args:
-        train_file_path: The path to the training dataset.
         target_column: The name of the target column (the column to be predicted).
+        train_file_path: The path to the training dataset.
+        train_df: Pandas DataFrame as a training set instead of file.
         model_metric: Optional evaluation metric to be used for modeling.
         task_type: Optional task type. Will be automatically determined if it's not specified.
         model_type: Optional model type.
@@ -41,6 +44,7 @@ def build_model(train_file_path: str, *, target_column: str, model_metric: Model
         feature_columns: Optional list of column names to be used for modeling.
         drop_columns: Optional list of column names to be dropped before modeling.
         validation_file_path: Optional path to a validation dataset.
+        validation_df: Optional Pandas DataFrame as a validation dataset.
         access_token: Optional access token if engine needs to be authenticated.
         refresh_token: Optional refresh token if model needs to be authenticated.
         kwargs: Optional parameters to be passed to the model builder.
@@ -100,20 +104,21 @@ def build_model(train_file_path: str, *, target_column: str, model_metric: Model
 
     if model_type is not None:
         if model_type == ModelType.H2O3:
-            return _H2O3Model.build(train_file_path, target_column, model_metric, task_type, categorical_columns,
-                                    feature_columns, drop_columns, validation_file_path, **kwargs)
+            return _H2O3Model.build(train_file_path, train_df, target_column, model_metric, task_type,
+                                    categorical_columns, feature_columns, drop_columns, validation_file_path,
+                                    validation_df, **kwargs)
         elif model_type == ModelType.DAI:
-            return _DAIModel.build(train_file_path, target_column, model_metric, task_type, categorical_columns,
-                                   feature_columns, drop_columns, validation_file_path, access_token, refresh_token,
-                                   **kwargs)
+            return _DAIModel.build(train_file_path, train_df, target_column, model_metric, task_type,
+                                   categorical_columns, feature_columns, drop_columns, validation_file_path,
+                                   validation_df, access_token, refresh_token, **kwargs)
 
     if _config.dai_address or _config.steam_address:
-        return _DAIModel.build(train_file_path, target_column, model_metric, task_type, categorical_columns,
-                               feature_columns, drop_columns, validation_file_path, access_token, refresh_token,
-                               **kwargs)
+        return _DAIModel.build(train_file_path, train_df, target_column, model_metric, task_type, categorical_columns,
+                               feature_columns, drop_columns, validation_file_path, validation_df, access_token,
+                               refresh_token, **kwargs)
 
-    return _H2O3Model.build(train_file_path, target_column, model_metric, task_type, categorical_columns, feature_columns,
-                            drop_columns, validation_file_path, **kwargs)
+    return _H2O3Model.build(train_file_path, train_df, target_column, model_metric, task_type, categorical_columns,
+                            feature_columns, drop_columns, validation_file_path, validation_df, **kwargs)
 
 
 def get_model(model_id: str = '', endpoint_url: str = '', model_type: Optional[ModelType] = None,

@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import csv
+from pathlib import Path
 import time
 from typing import Dict, Optional, List, Tuple, IO
 from urllib.parse import urljoin
@@ -28,7 +29,7 @@ except ModuleNotFoundError:
 import requests
 
 from .config import _config
-from .types import Model, ModelType, ModelMetric, TaskType
+from .types import Model, ModelType, ModelMetric, TaskType, PandasDataFrame
 from .utils import _make_id, _remove_prefix, _is_steam_imported, _is_mlops_imported
 
 
@@ -101,6 +102,13 @@ def _encode_from_csv(csvfile: IO) -> Dict:
     return {
         'fields': next(reader),
         'rows': [row for row in reader],
+    }
+
+
+def _encode_from_pandas(df: PandasDataFrame) -> Dict:
+    return {
+        'fields': list(df.columns),
+        'rows': [[str(item) for item in row] for _i, row in df.iterrows()]
     }
 
 
@@ -194,15 +202,24 @@ class _DAIModel(Model):
         return cls._INSTANCE
 
     @classmethod
-    def _build_model(cls, train_file_path: str, target_column: str, model_metric: ModelMetric,
-                     task_type: Optional[TaskType], categorical_columns: Optional[List[str]],
+    def _build_model(cls, train_file_path: str, train_df: Optional[PandasDataFrame], target_column: str,
+                     model_metric: ModelMetric, task_type: Optional[TaskType], categorical_columns: Optional[List[str]],
                      feature_columns: Optional[List[str]], drop_columns: Optional[List[str]],
-                     validation_file_path: Optional[str], access_token: str, **kwargs):
+                     validation_file_path: str, validation_df: Optional[PandasDataFrame], access_token: str, **kwargs):
 
         dai = cls._get_instance(access_token)
 
         train_dataset_id = _make_id()
-        train_dataset = dai.datasets.create(train_file_path, name=train_dataset_id)
+
+        if train_file_path:
+            if Path(train_file_path).exists():
+                train_dataset = dai.datasets.create(data=train_file_path, name=train_dataset_id)
+            else:
+                raise ValueError('train file not found')
+        elif train_df:
+            train_dataset = dai.datasets.create(data=train_df, name=train_dataset_id)
+        else:
+            raise ValueError('train data not supplied')
 
         try:
             train_summary = train_dataset.column_summaries(columns=[target_column])[0]
@@ -229,13 +246,18 @@ class _DAIModel(Model):
         if model_metric != ModelMetric.AUTO:
             params['scorer'] = model_metric.name
 
-        if validation_file_path is not None:
-            validation_dataset_id = _make_id()
-            validation_dataset = dai.datasets.create(validation_file_path, name=validation_dataset_id)
+        validation_dataset = None
+        if validation_file_path:
+            if Path(validation_file_path).exists():
+                validation_dataset = dai.datasets.create(data=validation_file_path, name=_make_id())
+            else:
+                raise ValueError('validation file not found')
+        elif validation_df:
+            validation_dataset = dai.datasets.create(data=validation_df, name=_make_id())
 
+        if validation_dataset is not None:
             if categorical_columns is not None:
                 validation_dataset.set_logical_types(column_types)
-
             params['validation_dataset'] = validation_dataset
 
         if feature_columns is not None:
@@ -304,27 +326,28 @@ class _DAIModel(Model):
         return statuses.deployment_status[0].scorer.score.url
 
     @classmethod
-    def build(cls, train_file_path: str, target_column: str, model_metric: ModelMetric, task_type: Optional[TaskType],
-              categorical_columns: Optional[List[str]], feature_columns: Optional[List[str]],
-              drop_columns: Optional[List[str]], validation_file_path: Optional[str], access_token: str,
-              refresh_token: str, **kwargs) -> Model:
+    def build(cls, train_file_path: str, train_df: Optional[PandasDataFrame], target_column: str,
+              model_metric: ModelMetric, task_type: Optional[TaskType], categorical_columns: Optional[List[str]],
+              feature_columns: Optional[List[str]], drop_columns: Optional[List[str]],
+              validation_file_path: str, validation_df: Optional[PandasDataFrame],
+              access_token: str, refresh_token: str, **kwargs) -> Model:
         """Builds DAI based model."""
 
         if refresh_token:
             access_token, refresh_token = _refresh_token(refresh_token, _config.oidc_provider_url,
                                                          _config.oidc_client_id, _config.oidc_client_secret)
 
-        experiment = cls._build_model(train_file_path=train_file_path, target_column=target_column,
+        experiment = cls._build_model(train_file_path=train_file_path, train_df=train_df, target_column=target_column,
                                       model_metric=model_metric, task_type=task_type,
                                       categorical_columns=categorical_columns, feature_columns=feature_columns,
                                       drop_columns=drop_columns, validation_file_path=validation_file_path,
-                                      access_token=access_token, **kwargs)
+                                      validation_df=validation_df, access_token=access_token, **kwargs)
 
         if refresh_token:
             access_token, refresh_token = _refresh_token(refresh_token, _config.oidc_provider_url,
                                                          _config.oidc_client_id, _config.oidc_client_secret)
         elif not access_token and not refresh_token:
-            raise ValueError('not token credentials for MLOps specified')
+            raise ValueError('no token credentials for MLOps')
 
         deployment_env = kwargs.get('_mlops_deployment_env', 'PROD')
         endpoint_url = cls._deploy_model(experiment, access_token, deployment_env)
@@ -363,10 +386,13 @@ class _DAIModel(Model):
 
         return _DAIModel(endpoint_url)
 
-    def predict(self, data: Optional[List[List]] = None, file_path: str = '', **kwargs) -> List[Tuple]:
+    def predict(self, data: Optional[List[List]] = None, file_path: str = '',
+                test_df: Optional[PandasDataFrame] = None, **kwargs) -> List[Tuple]:
 
         if data is not None:
             payload = _encode_from_data(data)
+        elif test_df is not None:
+            payload = _encode_from_pandas(test_df)
         elif file_path:
             with open(file_path) as csvfile:
                 payload = _encode_from_csv(csvfile)
