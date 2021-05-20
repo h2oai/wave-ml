@@ -105,7 +105,8 @@ def list_dai_instances(access_token: str = '', refresh_token: str = '') -> List[
                                                      _config.oidc_client_id, _config.oidc_client_secret)
     _connect_to_steam(access_token)
     instances = h2osteam.api().get_driverless_instances()
-    return [{'name': i['name'], 'status': i['status'], 'created_by': i['created_by']} for i in instances]
+    return [{'id': i['id'], 'name': i['name'], 'status': i['status'],
+             'created_by': i['created_by'], 'version': i['version']} for i in instances]
 
 
 def list_dai_multinodes(access_token: str = '', refresh_token: str = '') -> List[str]:
