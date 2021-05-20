@@ -23,5 +23,4 @@ __pdoc__ = {
     'config': False,
     'dai': False,
     'h2o3': False,
-    'utils': False,
 }

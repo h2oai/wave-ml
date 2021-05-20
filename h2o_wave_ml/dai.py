@@ -16,11 +16,9 @@ import csv
 from pathlib import Path
 import time
 from typing import Dict, Optional, List, Tuple, IO
-from urllib.parse import urljoin
 
 import driverlessai
 try:
-    import h2osteam
     from h2osteam.clients import DriverlessClient, MultinodeClient
     import mlops
     from _mlops.deployer import exceptions as ml_excp
@@ -30,7 +28,7 @@ import requests
 
 from .config import _config
 from .types import Model, ModelType, ModelMetric, TaskType, PandasDataFrame
-from .utils import _make_id, _remove_prefix, _is_steam_imported, _is_mlops_imported
+from .utils import _make_id, _remove_prefix, _is_mlops_imported, _connect_to_steam, _refresh_token
 
 
 _INT_TO_CAT_THRESHOLD = 50
@@ -50,27 +48,6 @@ def _make_project_id() -> str:
 
     u = _make_id()
     return f'wave-ml-{u}'
-
-
-def _refresh_token(refresh_token: str, provider_url: str, client_id: str, client_secret: str) -> Tuple[str, str]:
-
-    provider_url = f'{provider_url}/' if not provider_url.endswith('/') else provider_url
-    r = requests.get(urljoin(provider_url, '.well-known/openid-configuration'))
-    r.raise_for_status()
-    conf_data = r.json()
-
-    token_endpoint_url = conf_data['token_endpoint']
-
-    payload = dict(
-        client_id=client_id,
-        client_secret=client_secret,
-        grant_type='refresh_token',
-        refresh_token=refresh_token,
-    )
-    r = requests.post(token_endpoint_url, data=payload)
-    r.raise_for_status()
-    token_data = r.json()
-    return token_data['access_token'], token_data['refresh_token']
 
 
 def _wait_for_deployment(mlops_client, deployment_id: str):
@@ -163,7 +140,11 @@ class _DAIModel(Model):
         self._endpoint_url = endpoint_url
 
     @classmethod
-    def _get_instance(cls, access_token: str = ''):
+    def _get_instance(cls, access_token: str = '', **kwargs):
+
+        instance_name = kwargs.get('_steam_dai_instance_name', _config.steam_instance_name)
+        multinode_name = kwargs.get('_steam_dai_multinode_name', _config.steam_cluster_name)
+
         if cls._INSTANCE is None:
             if _config.dai_address:
                 cls._INSTANCE = driverlessai.Client(address=_config.dai_address,
@@ -171,24 +152,14 @@ class _DAIModel(Model):
                                                     password=_config.dai_password)
             elif _config.steam_address:
 
-                if not _is_steam_imported():
-                    raise RuntimeError('no Steam package installed (install h2osteam)')
+                _connect_to_steam(access_token)
 
-                if _config.steam_refresh_token:
-                    h2osteam.login(url=_config.steam_address, refresh_token=_config.steam_refresh_token,
-                                   verify_ssl=_config.steam_verify_ssl)
-                elif access_token:
-                    h2osteam.login(url=_config.steam_address, access_token=access_token,
-                                   verify_ssl=_config.steam_verify_ssl)
-                else:
-                    raise RuntimeError('no Steam credentials')
-
-                if _config.steam_cluster_name:
-                    instance = MultinodeClient.get_cluster(name=_config.steam_cluster_name)
+                if multinode_name:
+                    instance = MultinodeClient.get_cluster(name=multinode_name)
                     if not instance.is_master_ready():
                         raise RuntimeError('DAI master node not ready')
-                elif _config.steam_instance_name:
-                    instance = DriverlessClient.get_instance(name=_config.steam_instance_name)
+                elif instance_name:
+                    instance = DriverlessClient.get_instance(name=instance_name)
                     if instance.status() == 'stopped':
                         raise RuntimeError('DAI instance not ready: stopped')
                     elif instance.status() == 'failed':
@@ -207,7 +178,7 @@ class _DAIModel(Model):
                      feature_columns: Optional[List[str]], drop_columns: Optional[List[str]],
                      validation_file_path: str, validation_df: Optional[PandasDataFrame], access_token: str, **kwargs):
 
-        dai = cls._get_instance(access_token)
+        dai = cls._get_instance(access_token, **kwargs)
 
         train_dataset_id = _make_id()
 
@@ -286,7 +257,7 @@ class _DAIModel(Model):
         if not _config.mlops_gateway:
             raise ValueError('no MLOps gateway specified')
 
-        dai = cls._get_instance()  # This instance should already by present.
+        dai = cls._INSTANCE  # This instance should already by present.
         prj = dai.projects.create(name=_make_project_id())
         prj.link_experiment(experiment)
 
