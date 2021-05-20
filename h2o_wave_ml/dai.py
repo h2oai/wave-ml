@@ -216,7 +216,7 @@ class _DAIModel(Model):
                 train_dataset = dai.datasets.create(data=train_file_path, name=train_dataset_id)
             else:
                 raise ValueError('train file not found')
-        elif train_df:
+        elif train_df is not None:
             train_dataset = dai.datasets.create(data=train_df, name=train_dataset_id)
         else:
             raise ValueError('train data not supplied')
@@ -252,7 +252,7 @@ class _DAIModel(Model):
                 validation_dataset = dai.datasets.create(data=validation_file_path, name=_make_id())
             else:
                 raise ValueError('validation file not found')
-        elif validation_df:
+        elif validation_df is not None:
             validation_dataset = dai.datasets.create(data=validation_df, name=_make_id())
 
         if validation_dataset is not None:

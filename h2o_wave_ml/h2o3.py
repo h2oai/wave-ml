@@ -126,7 +126,7 @@ class _H2O3Model(Model):
                 train_frame = h2o.import_file(train_file_path)
             else:
                 raise ValueError('train file not found')
-        elif train_df:
+        elif train_df is not None:
             train_frame = h2o.H2OFrame(python_obj=train_df)
         else:
             raise ValueError('train data not supplied')
