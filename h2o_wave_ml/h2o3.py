@@ -79,6 +79,7 @@ class _H2O3Model(Model):
         '_h2o3_class_sampling_factors',
         '_h2o3_max_after_balance_size',
         '_h2o3_max_runtime_secs_per_model',
+        '_h2o3_stopping_metric',
         '_h2o3_stopping_tolerance',
         '_h2o3_stopping_rounds',
         '_h2o3_seed',
@@ -161,7 +162,6 @@ class _H2O3Model(Model):
         }
 
         aml = H2OAutoML(project_name=id_,
-                        stopping_metric=model_metric.name,
                         sort_metric=model_metric.name,
                         **params)
 

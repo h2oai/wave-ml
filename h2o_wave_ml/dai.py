@@ -120,6 +120,7 @@ class _DAIModel(Model):
         '_dai_accuracy',
         '_dai_time',
         '_dai_interpretability',
+        '_dai_scorer',
         '_dai_models',
         '_dai_transformers',
         '_dai_weight_column',
