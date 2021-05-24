@@ -51,11 +51,12 @@ def build_model(*, target_column: str, train_file_path: str = '', train_df: Opti
 
     Kwargs:
 
-        The list of the supported **DAI** parameters. The parameters description can be found [here](http://docs.h2o.ai/driverless-ai/pyclient/docs/html/client.html).
+        The list of the supported **DAI** parameters. The parameters description can be found [here](http://docs.h2o.ai/driverless-ai/pyclient/docs/html/client.html#driverlessai._experiments.Experiments.create).
 
         *_dai_accuracy*<br />
         *_dai_time*<br />
         *_dai_interpretability*<br />
+        *_dai_scorer*<br />
         *_dai_models*<br />
         *_dai_transformers*<br />
         *_dai_weight_column*<br />
@@ -79,6 +80,7 @@ def build_model(*, target_column: str, train_file_path: str = '', train_df: Opti
         [*_h2o3_class_sampling_factors*](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/algo-params/class_sampling_factors.html)<br />
         [*_h2o3_max_after_balance_size*](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/algo-params/max_after_balance_size.html)<br />
         [*_h2o3_max_runtime_secs_per_model*](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/algo-params/max_runtime_secs_per_model.html)<br />
+        [*_h2o3_stopping_metric*](https://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/algo-params/stopping_metric.html)<br />
         [*_h2o3_stopping_tolerance*](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/algo-params/stopping_tolerance.html)<br />
         [*_h2o3_stopping_rounds*](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/algo-params/stopping_rounds.html)<br />
         [*_h2o3_seed*](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/algo-params/seed.html)<br />

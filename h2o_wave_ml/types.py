@@ -28,16 +28,12 @@ class ModelMetric(Enum):
 
     AUTO = 1
     AUC = 2
-    MSE = 3
-    RMSE = 4
+    AUCPR = 3
+    LOGLOSS = 4
     MAE = 5
-    RMSLE = 6
-    DEVIANCE = 7
-    LOGLOSS = 8
-    AUCPR = 9
-    LIFT_TOP_GROUP = 10
-    MISCLASSIFICATION = 11
-    MEAN_PER_CLASS_ERROR = 12
+    MSE = 6
+    RMSE = 7
+    RMSLE = 8
 
 
 class ModelType(Enum):
