@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import csv
+import warnings
 from pathlib import Path
 import time
 from typing import Dict, Optional, List, Tuple, IO
@@ -216,7 +217,10 @@ class _DAIModel(Model):
         }
 
         if model_metric != ModelMetric.AUTO:
-            params['scorer'] = model_metric.name
+            if 'scorer' not in params.get('scorer', []):
+                params['scorer'] = model_metric.name
+            else:
+                warnings.warn('the `dai_scorer` will be used instead of `model_metric`')
 
         validation_dataset = None
         if validation_file_path:
