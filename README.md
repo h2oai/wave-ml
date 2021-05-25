@@ -8,6 +8,8 @@ Wave ML runs on Linux, OSX, and Windows, and utilizes [H2O.ai's](https://h2o.ai)
 
 When Wave apps are run in [H2O AI Hybrid Cloud](https://www.h2o.ai/hybrid-cloud/) with GPU support, Wave ML optionally switches over to [Driverless AI](https://www.h2o.ai/products/h2o-driverless-ai/) for automatic feature engineering, machine learning, model deployment, and monitoring.
 
+<img src="assets/WaveML.png" alt="architecture diagram">
+
 ### Installation
 
 Both Wave and Wave ML can be installed in tandem using pip:
