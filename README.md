@@ -1,4 +1,8 @@
-## Automatic Machine Learning (AutoML) for Wave Apps
+## H2O Wave ML
+
+<img src="assets/logo.png" alt="logo">
+
+### Automatic Machine Learning (AutoML) for Wave Apps
 
 This repository hosts Wave ML (`h2o-wave-ml`), a companion package for H2O Wave that makes it quick and easy to integrate AI/ML models into your applications.
 
