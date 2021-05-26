@@ -2,7 +2,7 @@
 Name = "ai.h2o.wave.h2o_wave_ml"
 Version = "0.7.0"
 Title = "H2O Wave ML"
-Description = "Summary of H2O Wave ML capabilities and features"
+Description = "Demo workflow, code snippets and resources for using H2O Wave ML."
 LongDescription = "LongDescription.md"
 Category = "Machine Learning"
 Keywords = ["ai", "h2o", "ml", "wave"]

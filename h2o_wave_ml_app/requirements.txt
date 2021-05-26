@@ -3,3 +3,4 @@ h2o_wave[ml]
 numpy==1.20.3
 pandas==1.2.4
 Pygments==2.9.0
+scikit-learn==0.24.2
