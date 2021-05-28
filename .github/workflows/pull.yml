@@ -13,8 +13,13 @@ jobs:
         with:
           python-version: '3.7'
 
-      - name: Install Flake8
-        run: pip install flake8
+      - name: Install Deps
+        run: pip install flake8 mypy
 
-      - name: Run Flake8
+      - name: Run flake8
+        continue-on-error: true
         run: flake8 h2o_wave_ml --ignore=E501
+
+      - name: Run mypy
+        continue-on-error: true
+        run: mypy --ignore-missing-imports h2o_wave_ml/*.py

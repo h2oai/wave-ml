@@ -18,7 +18,7 @@ from typing import Optional, List, Tuple, Any
 
 try:
     import pandas
-    PandasDataFrame = pandas.DataFrame
+    PandasDataFrame = pandas.DataFrame  # type: Any
 except ModuleNotFoundError:
     PandasDataFrame = Any
 

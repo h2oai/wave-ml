@@ -263,6 +263,10 @@ class _DAIModel(Model):
             raise ValueError('no MLOps gateway specified')
 
         dai = cls._INSTANCE  # This instance should already by present.
+
+        if dai is None:
+            raise RuntimeError('no DAI instance available')
+
         prj = dai.projects.create(name=_make_project_id())
         prj.link_experiment(experiment)
 
