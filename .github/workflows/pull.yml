@@ -1,8 +1,7 @@
-name: Pull Request Workflow
+name: Check Pull Request
 on: [pull_request]
 jobs:
   qa:
-    name: Quality Check
     runs-on: ubuntu-18.04
 
     steps:
