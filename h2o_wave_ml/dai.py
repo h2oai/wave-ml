@@ -71,7 +71,7 @@ def _encode_from_data(data: List[List]) -> Dict:
 
     return {
         'fields': data[0],
-        'rows':  [[str(item) for item in row] for row in data[1:]],
+        'rows': [[str(item) for item in row] for row in data[1:]],
     }
 
 
