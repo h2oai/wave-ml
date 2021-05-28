@@ -17,9 +17,12 @@ import setuptools
 with open('DESCRIPTION.md', 'r') as fh:
     long_description = fh.read()
 
+with open('VERSION', 'r') as fh:
+    version = fh.readline().rstrip('\n')
+
 setuptools.setup(
     name='h2o_wave_ml',
-    version='0.7.0',
+    version=version,
     author='H2O.ai',
     author_email='support@h2o.ai',
     description='AutoML for Wave Apps',
