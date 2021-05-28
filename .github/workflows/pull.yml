@@ -1,5 +1,5 @@
 name: Pull Request Workflow
-on: [pull_request, workflow_dispatch]
+on: [pull_request]
 jobs:
   qa:
     name: Quality Check
