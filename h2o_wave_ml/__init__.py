@@ -16,8 +16,8 @@
 Python package `h2o_wave_ml` provides the API functions for automatic machine learning tasks.
 """
 
-from .ml import build_model, get_model, save_model, load_model
-from .types import Model, ModelType, ModelMetric, TaskType
+from .ml import build_model, get_model, save_model, load_model  # noqa: F401
+from .types import Model, ModelType, ModelMetric, TaskType  # noqa: F401
 
 __pdoc__ = {
     'config': False,

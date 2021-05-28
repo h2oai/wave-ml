@@ -1,0 +1,19 @@
+name: Pull Request Workflow
+on: [pull_request, workflow_dispatch]
+jobs:
+  qa:
+    name: Quality Check
+    runs-on: ubuntu-18.04
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.7'
+
+      - name: Run Flake8
+        run: |
+          pip install flake8
+          flake8 h2o_wave_ml --ignore=E501

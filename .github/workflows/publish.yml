@@ -1,12 +1,9 @@
 name: Push Package to PyPI
-
 on:
   release:
     types: [published]
-
 jobs:
   deploy:
-
     runs-on: ubuntu-18.04
 
     steps:
