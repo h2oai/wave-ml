@@ -1,8 +1,8 @@
 [App]
 Name = "ai.h2o.wave.h2o_wave_ml"
-Version = "0.7.0"
+Version = "0.7.1"
 Title = "H2O Wave ML"
-Description = "Demo workflow, code snippets and resources for using H2O Wave ML."
+Description = "Demo workflow, code snippets and example resources for using H2O Wave ML."
 LongDescription = "LongDescription.md"
 Category = "Machine Learning"
 Keywords = ["ai", "h2o", "ml", "wave"]
@@ -10,12 +10,26 @@ Keywords = ["ai", "h2o", "ml", "wave"]
 [Runtime]
 Module = "src.app"
 VolumeMount = "/data"
-VolumeSize = "9Gi"
+VolumeSize = "4Gi"
 ResourceVolumeSize = "1Gi"
-MemoryLimit = "9Gi"
+MemoryLimit = "4Gi"
 MemoryReservation = "1Gi"
 CPULimit = "4"
 CPUReservation = "1"
 GPUCount = 0
 GPUType = ""
-EnableOIDC = false
+EnableOIDC = true
+
+[[Env]]
+Name = "H2O_WAVE_ML_STEAM_ADDRESS"
+Secret = "h2oai-steam"
+SecretKey = "api"
+
+[[Env]]
+Name = "H2O_WAVE_ML_MLOPS_GATEWAY"
+Secret = "h2oai-mlops"
+SecretKey = "gateway"
+
+[[Env]]
+Name = "H2O_WAVE_ML_STEAM_VERIFY_SSL"
+Value = "False"

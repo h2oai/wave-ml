@@ -114,8 +114,8 @@ def large() -> ui.Layout:
                                 name='dai_cloud',
                                 direction='row',
                                 zones=[
-                                    ui.zone(name='dai_cloud_local', size='50%'),
-                                    ui.zone(name='dai_cloud_local', size='50%')
+                                    ui.zone(name='inputs_dai_cloud', size='50%'),
+                                    ui.zone(name='outputs_dai_cloud', size='50%')
                                 ]
                             )
                         ]

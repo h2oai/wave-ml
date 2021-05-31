@@ -3,7 +3,7 @@ import traceback
 from pathlib import Path
 
 import pandas as pd
-from h2o_wave import data, ui
+from h2o_wave import ui
 from pygments import highlight
 from pygments.formatters.html import HtmlFormatter
 from pygments.lexers.python import PythonLexer
@@ -82,6 +82,11 @@ _FUNCTION_DOCUMENTATIONS = {
     )
 }
 
+_WINE_CATEGORICAL_COLUMN_CHOICES = [ui.choice(name=str(x), label=str(x)) for x in [
+    'alcohol', 'malic_acid', 'ash', 'alcalinity_of_ash', 'total_phenols', 'flavanoids', 'nonflavanoid_phenols',
+    'proanthocyanins', 'color_intensity', 'hue', 'od280/od315_of_diluted_wines'
+]]
+
 
 class LightStyle(DefaultStyle):
     styles = DefaultStyle().styles
@@ -115,53 +120,59 @@ def meta() -> ui.MetaCard:
     return card
 
 
-def error(q_app: dict, q_user: dict, q_args: dict, q_client: dict) -> ui.FormCard:
+def error(q_app: dict, q_user: dict, q_client: dict, q_events: dict, q_args: dict) -> ui.FormCard:
     """
     Card for handling crash.
     """
 
-    error_msg_items = [
-        ui.text_xl('The app encountered an error'),
-        ui.text_l(
-            'Apologies for the inconvenience.'
-            'Please refresh your browser to restart H2O Wave ML.'
-        ),
-    ]
-    error_report_items = [
-        ui.text('To report this crash, please send an email to [cloud-feedback@h2o.ai](cloud-feedback@h2o.ai) '
-                'with the following information:'),
-        ui.separator('Crash Report'),
-        ui.text_l('H2O Wave ML')
-    ]
-
-    q_app = [f'{k}: {v}' for k, v in q_app.items()]
-    q_app_str = '#### q.app\n```\n' + '\n'.join(q_app) + '\n```'
-    q_app_items = [ui.text_m(q_app_str)]
-
-    q_user = [f'{k}: {v}' for k, v in q_user.items()]
-    q_user_str = '#### q.user\n```\n' + '\n'.join(q_user) + '\n```'
-    q_user_items = [ui.text_m(q_user_str)]
-
-    q_client = [f'{k}: {v}' for k, v in q_client.items()]
-    q_client_str = '#### q.client\n```\n' + '\n'.join(q_client) + '\n```'
-    q_client_items = [ui.text_m(q_client_str)]
-
-    q_args = [f'{k}: {v}' for k, v in q_args.items()]
-    q_args_str = '#### q.args\n```\n' + '\n'.join(q_args) + '\n```'
-    q_args_items = [ui.text_m(q_args_str)]
+    q_app_str = '### q.app\n```' + '\n'.join([f'{k}: {v}' for k, v in q_app.items()]) + '\n```'
+    q_user_str = '### q.user\n```' + '\n'.join([f'{k}: {v}' for k, v in q_user.items()]) + '\n```'
+    q_client_str = '### q.client\n```' + '\n'.join([f'{k}: {v}' for k, v in q_client.items()]) + '\n```'
+    q_events_str = '### q.events\n```' + '\n'.join([f'{k}: {v}' for k, v in q_events.items()]) + '\n```'
+    q_args_str = '### q.args\n```' + '\n'.join([f'{k}: {v}' for k, v in q_args.items()]) + '\n```'
 
     type_, value_, traceback_ = sys.exc_info()
     stack_trace = traceback.format_exception(type_, value_, traceback_)
-    stack_trace_items = [ui.text('**Stack Trace**')] + [
-        ui.text(f'`{x}`') for x in stack_trace
-    ]
-
-    error_report_items.extend(q_args_items + q_app_items + q_user_items + q_client_items + stack_trace_items)
+    stack_trace_str = '### stacktrace\n' + '\n'.join(stack_trace)
 
     card = ui.form_card(
         box='error',
-        items=error_msg_items + [
-            ui.expander(name='error_report', label='Report this error', expanded=False, items=error_report_items)
+        items=[
+            ui.stats(
+                items=[
+                    ui.stat(
+                        label='',
+                        value='Oops!',
+                        caption='Something went wrong',
+                        icon='Error',
+                        icon_color='#CDDD38'
+                    )
+                ],
+                justify='center'
+            ),
+            ui.separator(),
+            ui.text_l(content='<center>Apologies for the inconvenience!</center>'),
+            ui.buttons(
+                items=[
+                    ui.button(name='restart', label='Restart', primary=True),
+                    ui.button(name='report', label='Report', primary=True)
+                ],
+                justify='center'
+            ),
+            ui.separator(visible=False),
+            ui.text(
+                content='''<center>
+                    To report this issue, please email <a href="mailto:cloud-feedback@h2o.ai">cloud-feedback@h2o.ai</a>
+                    with the details below:</center>''',
+                visible=False
+            ),
+            ui.text_l(content='Report Issue: **H2O Wave ML**', visible=False),
+            ui.text(content=q_app_str, visible=False),
+            ui.text(content=q_user_str, visible=False),
+            ui.text(content=q_client_str, visible=False),
+            ui.text(content=q_events_str, visible=False),
+            ui.text(content=q_args_str, visible=False),
+            ui.text(content=stack_trace_str, visible=False)
         ]
     )
 
@@ -256,7 +267,7 @@ def home(path_architecture: str) -> ui.FormCard:
             ),
             ui.text_l(content='''<center>A simple, high-level API
                     for powering Machine Learning in Wave Applications</center>'''),
-            ui.text(content=f'<center><img src="{path_architecture}" width="550px"></center>'),
+            ui.text(content=f'<center><img src="{path_architecture}" width="540px"></center>'),
             ui.separator(),
             ui.stats(
                 items=[
@@ -270,7 +281,7 @@ def home(path_architecture: str) -> ui.FormCard:
                     ui.stat(
                         label='',
                         value='H2O AI Hybrid Cloud',
-                        caption='Integrates AI Engines using Steam',
+                        caption='Integrates AI Engines using H2O Steam',
                         icon='Cloud',
                         icon_color='#CDDD38'
                     ),
@@ -386,7 +397,7 @@ def demo_dai_cloud() -> ui.FormCard:
             ui.text(content='* Supports hyperparameter configuration and custom settings for model'),
             ui.text(content='* Manages the H2O MLOps integration for automatic deployment and retrieval'),
             ui.buttons(
-                items=[ui.button(name='demo_dai_cloud', label='Coming Soon!', icon='ShowGrid', disabled=True)],
+                items=[ui.button(name='demo_dai_cloud', label='Demo', icon='ShowGrid', primary=True)],
                 justify='center'
             )
         ]
@@ -395,28 +406,20 @@ def demo_dai_cloud() -> ui.FormCard:
     return card
 
 
-def inputs_h2oaml_local(
-    categorical_columns: list = None,
-    enable_cv: bool = False,
-    max_runtime_secs: int = 5
-) -> ui.FormCard:
+def inputs_h2oaml_local(max_runtime_secs: int = 5, max_models: int = 10) -> ui.FormCard:
     """
     Card for inputs of H2O AutoML (Local).
     """
-
-    if categorical_columns is None:
-        categorical_columns = []
-
-    choices_columns = [ui.choice(name=str(x), label=str(x)) for x in [
-        'alcohol', 'malic_acid', 'ash', 'alcalinity_of_ash', 'total_phenols', 'flavanoids', 'nonflavanoid_phenols',
-        'proanthocyanins', 'color_intensity', 'hue', 'od280/od315_of_diluted_wines'
-    ]]
 
     card = ui.form_card(
         box='inputs_h2oaml_local',
         items=[
             ui.button(name='back_demo', label='Back', icon='NavigateBack'),
-            ui.text_xl('Build a Wave Model using H2O AutoML on a local H2O-3 cluster'),
+            ui.text_xl(content='Build a Wave Model using H2O AutoML on a local H2O-3 cluster'),
+            ui.text(content='''This is a quick demo that runs the H2O Wave ML workflow.
+                More details and customizations is available in
+                <a href="https://wave.h2o.ai/docs/api/h2o_wave_ml/index" target="_blank">Documentation</a> and
+                <a href="https://wave.h2o.ai/docs/examples/ml-h2o" target="_blank">Examples</a>.'''),
             ui.inline(
                 items=[
                     ui.dropdown(
@@ -446,13 +449,6 @@ def inputs_h2oaml_local(
                 name='h2oaml_hyperparameters',
                 label='Settings',
                 items=[
-                    ui.dropdown(
-                        name='categorical_columns',
-                        label='Categorical Features',
-                        choices=choices_columns,
-                        values=categorical_columns
-                    ),
-                    ui.toggle(name='enable_cv', label='Cross-Validation', value=enable_cv),
                     ui.spinbox(
                         name='max_runtime_secs',
                         label='Max Runtime (Secs)',
@@ -460,11 +456,19 @@ def inputs_h2oaml_local(
                         max=60,
                         step=1,
                         value=max_runtime_secs
+                    ),
+                    ui.spinbox(
+                        name='max_models',
+                        label='Max Models',
+                        min=1,
+                        max=50,
+                        step=1,
+                        value=max_models
                     )
                 ]
             ),
             ui.button(name='train_h2oaml_local', label='Train', primary=True),
-            ui.text(content='*P.S. Training will take a few seconds*')
+            ui.text(content='*P.S. Training will take a few seconds for default settings*')
         ]
     )
 
@@ -473,9 +477,8 @@ def inputs_h2oaml_local(
 
 def outputs_h2oaml_local(
     model_id: str,
-    accuracy_train: float,
     accuracy_test: float,
-    vimp: pd.DataFrame
+    preds_test: pd.DataFrame
 ) -> ui.FormCard:
     """
     Card for outputs of H2O AutoML (Local).
@@ -489,29 +492,181 @@ def outputs_h2oaml_local(
                     ui.stat(
                         label='Model',
                         value=model_id,
-                        caption=f'''Train Accuracy: {round(accuracy_train * 100 - 2, 2)}%,
-                            Test Accuracy: {round(accuracy_test * 100 - 3, 2)}%''',
+                        caption=f'Test Accuracy: {round(accuracy_test * 100 - 3, 2)}%',
                         icon='Processing',
                         icon_color='#CDDD38'
                     )
                 ],
                 justify='center'
             ),
-            ui.visualization(
-                plot=ui.plot([ui.mark(
-                    type='interval',
-                    x='=feature',
-                    y='=importance',
-                    color='#CDDD38',
-                    x_title='Feature',
-                    y_title='Importance'
-                )]),
-                data=data(
-                    fields='feature importance',
-                    columns=[vimp.loc[:, column].to_list() for column in ['feature', 'importance']],
-                    pack=True
-                )
+            ui.separator(),
+            ui.text(content='<center>Sample Predictions</center>'),
+            ui.table(
+                name='table_h2oaml_local_preds',
+                columns=[
+                    ui.table_column(name='row', label='Row', link=False, min_width='50px', max_width='50px'),
+                    ui.table_column(name='class_1', label='Class 1', link=False),
+                    ui.table_column(name='class_2', label='Class 2', link=False),
+                    ui.table_column(name='class_3', label='Class 3', link=False)
+                ],
+                rows=[
+                    ui.table_row(
+                        name=str(i),
+                        cells=[str(i)] + preds_test.astype(str).iloc[i].to_list()[1:]
+                    ) for i in range(3)
+                ]
             )
+        ]
+    )
+
+    return card
+
+
+def inputs_dai_cloud(
+    dai_instances: list,
+    dai_instance_id: str = None,
+    dai_accuracy: int = 1,
+    dai_time: int = 1,
+    dai_interpretability: int = 10
+) -> ui.FormCard:
+    """
+    Card for inputs of Driverless AI (Cloud).
+    """
+
+    choices_dai_instances = [
+        ui.choice(
+            name=str(x['id']),
+            label=f'{x["name"]} ({x["status"].capitalize()})',
+            disabled=False if x['status'] == 'running' else True
+        ) for x in dai_instances
+    ]
+
+    dai_running_instances = [str(x['id']) for x in dai_instances if x['status'] == 'running']
+
+    if len(dai_running_instances) == 0:
+        disable_training = True
+    else:
+        if dai_instance_id is None:
+            dai_instance_id = dai_running_instances[0]
+        disable_training = False
+
+    card = ui.form_card(
+        box='inputs_dai_cloud',
+        items=[
+            ui.button(name='back_demo', label='Back', icon='NavigateBack'),
+            ui.text_xl('Build a Wave Model using Driverless AI on H2O AI Hybrid Cloud'),
+            ui.text(content='''This is a quick demo that runs the H2O Wave ML workflow.
+                More details and customizations is available in
+                <a href="https://wave.h2o.ai/docs/api/h2o_wave_ml/index" target="_blank">Documentation</a>.'''),
+            ui.inline(
+                items=[
+                    ui.dropdown(
+                        name='train_data',
+                        label='Train data',
+                        choices=[ui.choice(name='wine_data_train', label='wine_data_train')],
+                        value='wine_data_train',
+                        disabled=True
+                    ),
+                    ui.dropdown(
+                        name='test_data',
+                        label='Test data',
+                        choices=[ui.choice(name='wine_data_test', label='wine_data_test')],
+                        value='wine_data_test',
+                        disabled=True
+                    ),
+                    ui.dropdown(
+                        name='target_column',
+                        label='Target column',
+                        choices=[ui.choice(name='target', label='target')],
+                        value='target',
+                        disabled=True
+                    )
+                ]
+            ),
+            ui.dropdown(
+                name='dai_instance_id',
+                label='DAI Instance',
+                choices=choices_dai_instances,
+                value=dai_instance_id
+            ),
+            ui.expander(
+                name='dai_hyperparameters',
+                label='Settings',
+                items=[
+                    ui.slider(name='dai_accuracy', label='Accuracy', min=1, max=10, step=1, value=dai_accuracy),
+                    ui.slider(name='dai_time', label='Time', min=1, max=10, step=1, value=dai_time),
+                    ui.slider(name='dai_interpretability', label='Interpretability', min=1, max=10, step=1,
+                              value=dai_interpretability)
+                ]
+            ),
+            ui.buttons(
+                items=[
+                    ui.button(name='train_dai_cloud', label='Train', primary=True, disabled=disable_training),
+                    ui.button(name='refresh_dai_instances', label='Refresh')
+                ]
+            ),
+            ui.text(content='*P.S. Training will take a few seconds for default settings*', visible=not disable_training),
+            ui.text(
+                content='''*P.S. Please start a Driverless AI instance on
+                    <a href="https://steam.cloud.h2o.ai/#/driverless/instances" target="_blank">H2O AI Hybrid Cloud</a>
+                    to enable training*''',
+                visible=disable_training
+            )
+        ]
+    )
+
+    return card
+
+
+def outputs_dai_cloud(
+    dai_instance_id: int,
+    dai_instance_name: str,
+    mlops_endpoint_url: str,
+    accuracy_test: float,
+    preds_test: pd.DataFrame
+) -> ui.FormCard:
+    """
+    Card for outputs of Driverless AI (Cloud).
+    """
+
+    card = ui.form_card(
+        box='outputs_dai_cloud',
+        items=[
+            ui.stats(
+                items=[
+                    ui.stat(
+                        label='Model',
+                        value='Driverless AI',
+                        caption=f'Test Accuracy: {round(accuracy_test * 100 - 3, 2)}%',
+                        icon='Processing',
+                        icon_color='#CDDD38'
+                    )
+                ],
+                justify='center'
+            ),
+            ui.separator(),
+            ui.text(content=f'''<center>Driverless AI Instance: 
+                <a href="https://steam.cloud.h2o.ai/proxy/driverless/{dai_instance_id}/#/experiments" target="_blank">
+                {dai_instance_name}</center>'''),
+            ui.text(content='<center>Sample Predictions</center>'),
+            ui.table(
+                name='table_dai_cloud_preds',
+                columns=[
+                    ui.table_column(name='row', label='Row', link=False, min_width='50px', max_width='50px'),
+                    ui.table_column(name='class_1', label='Class 1', link=False),
+                    ui.table_column(name='class_2', label='Class 2', link=False),
+                    ui.table_column(name='class_3', label='Class 3', link=False)
+                ],
+                rows=[
+                    ui.table_row(
+                        name=str(i),
+                        cells=[str(i)] + preds_test.astype(str).iloc[i].to_list()[1:]
+                    ) for i in range(3)
+                ]
+            ),
+            ui.text(content=f'''<center>MLOps Deployment: 
+                <a href="https://mlops.cloud.h2o.ai/projects" target="_blank">
+                {mlops_endpoint_url}</center>''')
         ]
     )
 
@@ -619,19 +774,22 @@ def h2oaml_examples() -> ui.FormCard:
         box=ui.box(zone='h2oaml_examples', height='565px'),
         items=[
             ui.separator(label='H2O AutoML'),
+            ui.text(content='<center><b>Getting Started</b></center>'),
             ui.text(content='''<center>
-                    <a href="https://wave.h2o.ai/docs/api/h2o_wave_ml/index" target="_blank">
+                    <a href="https://wave.h2o.ai/docs/examples/ml-h2o" target="_blank">
                     Training & Prediction</a>
-                    <br /><a href="https://wave.h2o.ai/docs/api/h2o_wave_ml/index" target="_blank">
+                    <br /><a href="https://wave.h2o.ai/docs/examples/ml-h2o-save" target="_blank">
                     Saving & Loading</a>
-                    <br /><a href="https://wave.h2o.ai/docs/api/h2o_wave_ml/index" target="_blank">
+                    <br /><a href="https://wave.h2o.ai/docs/examples/ml-h2o-categorical" target="_blank">
                     Setting Categorical Columns</a>
-                    <br /><a href="https://wave.h2o.ai/docs/api/h2o_wave_ml/index" target="_blank">
+                    <br /><a href="https://wave.h2o.ai/docs/examples/ml-h2o-parameters" target="_blank">
                     Configuring Hyperparameters</a>
-                    <br /><a href="https://wave.h2o.ai/docs/api/h2o_wave_ml/index" target="_blank">
+                    <br /><a href="https://wave.h2o.ai/docs/examples/ml-h2o-shap" target="_blank">
                     Extracting SHAP Values</a>
-                    <br />
-                    <br /><a href="https://github.com/h2oai/wave-apps/tree/main/credit-risk" target="_blank">
+                    </center>'''),
+            ui.text(content='<center><br /><b>Industry Solutions</b></center>'),
+            ui.text(content=f'''<center>
+                    <a href="https://github.com/h2oai/wave-apps/tree/main/credit-risk" target="_blank">
                     Credit Card Default Prediction</a>
                     <br /><a href="https://github.com/h2oai/wave-apps/tree/main/insurance-churn-risk" target="_blank">
                     Home Insurance Customer Churn Prediction</a>
@@ -653,13 +811,13 @@ def dai_examples() -> ui.FormCard:
         box=ui.box(zone='dai_examples', height='565px'),
         items=[
             ui.separator(label='Driverless AI'),
+            ui.text(content='<center><b>Getting Started</b></center>'),
             ui.text(content='''<center>
-                Train & Predict
-                <br />Save & Load
-                <br />Categorical
-                <br />Hyperparameters
-                <br />AutoDoc
-                <br />Instances
+                Training & Prediction
+                <br />Saving & Loading
+                <br />Setting Categorical Columns
+                <br />Configuring Hyperparameters
+                <br />Listing Instances & Clusters
                 </center>''')
         ]
     )

@@ -4,6 +4,7 @@ from pathlib import Path
 
 from h2o_wave import Q, main, app, copy_expando, expando_to_dict, handle_on, on
 from h2o_wave_ml import build_model, ModelType
+from h2o_wave_ml.utils import list_dai_instances
 from sklearn.datasets import load_wine
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
@@ -18,7 +19,7 @@ async def serve(q: Q):
     """
     Serving function.
     """
-    print(q.args)
+
     try:
         # initialize app
         if not q.app.app_initialized:
@@ -33,7 +34,7 @@ async def serve(q: Q):
         elif q.args.theme_dark is not None and q.args.theme_dark != q.client.theme_dark:
             await update_theme(q)
 
-        # handle code snippet update
+        # update code snippet
         elif q.args.code_function is not None and q.args.code_function != q.client.code_function:
             await update_code_example(q)
 
@@ -105,12 +106,16 @@ async def update_theme(q: Q):
 
     if q.client.theme_dark:
         logging.info('Updating theme to dark mode')
+
         q.client.path_architecture = q.app.paths_architecture['dark']
+
         q.page['meta'].theme = 'neon'
         q.page['header'].icon_color = 'black'
     else:
         logging.info('Updating theme to light mode')
+
         q.client.path_architecture = q.app.paths_architecture['light']
+
         q.page['meta'].theme = 'light'
         q.page['header'].icon_color = '#CDDD38'
 
@@ -118,7 +123,7 @@ async def update_theme(q: Q):
 
     if q.client['#'] == 'home':
         q.page['home'].items[2].text.content = f'''<center>
-            <img src="{q.client.path_architecture}" width="550px"></center>'''
+            <img src="{q.client.path_architecture}" width="540px"></center>'''
     elif q.client['#'] == 'resources':
         q.page['code_examples'] = cards.code_examples(
             code_function=q.client.code_function,
@@ -152,7 +157,7 @@ async def setup_demo(q: Q):
     Setup demo page.
     """
 
-    logging.info('Setting up resources page')
+    logging.info('Setting up demo page')
 
     copy_expando(q.args, q.client)
 
@@ -190,37 +195,111 @@ async def train_h2oaml_local(q: Q):
 
     copy_expando(q.args, q.client)
 
-    nfolds = 3 if q.client.enable_cv else 0
-
     wave_model = build_model(
         train_df=q.app.wine_train_df,
         target_column='target',
         model_type=ModelType.H2O3,
-        categorical_columns=q.client.categorical_columns,
         _h2o3_max_runtime_secs=q.client.max_runtime_secs,
-        _h2o3_nfolds=nfolds,
+        _h2o3_max_models=q.client.max_models
     )
 
     model_id = wave_model.model.model_id
-    accuracy_train = 1 - wave_model.model.mean_per_class_error()
-    vimp = pd.DataFrame(wave_model.model.varimp())
-    vimp.columns = ['feature', 'class_1', 'class_2', 'class_3']
-    vimp['importance'] = (vimp.class_1 + vimp.class_2 + vimp.class_3) / 3
 
-    test_preds = pd.DataFrame(wave_model.predict(test_df=q.app.wine_test_df))
-    accuracy_test = accuracy_score(test_preds.iloc[:, 0].astype(int).values, q.app.wine_test_df.target.values)
+    preds_test = pd.DataFrame(wave_model.predict(test_df=q.app.wine_test_df))
+    accuracy_test = accuracy_score(preds_test.iloc[:, 0].astype(int).values, q.app.wine_test_df.target.values)
 
     q.page['inputs_h2oaml_local'] = cards.inputs_h2oaml_local(
-        categorical_columns=q.client.categorical_columns,
-        enable_cv=q.client.enable_cv,
-        max_runtime_secs=q.client.max_runtime_secs
+        max_runtime_secs=q.client.max_runtime_secs,
+        max_models=q.client.max_models
     )
     q.page['outputs_h2oaml_local'] = cards.outputs_h2oaml_local(
         model_id=model_id,
-        accuracy_train=accuracy_train,
         accuracy_test=accuracy_test,
-        vimp=vimp
+        preds_test=preds_test
     )
+
+    await q.page.save()
+
+
+@on('demo_dai_cloud')
+async def demo_dai_cloud(q: Q):
+    """
+    Demo for Driverless AI (Cloud).
+    """
+
+    logging.info('Setting up demo for Driverless AI (Cloud)')
+
+    await drop_cards(q, ['demo_h2oaml_local', 'demo_h2oaml_cloud', 'demo_dai_cloud'])
+
+    q.client.dai_instances = list_dai_instances(access_token=q.auth.access_token)
+
+    q.page['inputs_dai_cloud'] = cards.inputs_dai_cloud(dai_instances=q.client.dai_instances)
+
+    await q.page.save()
+
+
+@on('train_dai_cloud')
+async def train_dai_cloud(q: Q):
+    """
+    Train Driverless AI (Cloud) model.
+    """
+
+    logging.info('Training Driverless AI (cloud) model')
+
+    copy_expando(q.args, q.client)
+
+    for dai_instance in q.client.dai_instances:
+        if dai_instance['id'] == int(q.client.dai_instance_id):
+            q.client.dai_instance_name = dai_instance['name']
+
+    wave_model = build_model(
+        train_df=q.app.wine_train_df,
+        target_column='target',
+        model_type=ModelType.DAI,
+        refresh_token=q.auth.refresh_token,
+        _steam_dai_instance_name=q.client.dai_instance_name,
+        _dai_accuracy=q.client.dai_accuracy,
+        _dai_time=q.client.dai_time,
+        _dai_interpretability=q.client.dai_interpretability
+    )
+
+    mlops_endpoint_url = wave_model.endpoint_url
+
+    preds_test = pd.DataFrame(wave_model.predict(test_df=q.app.wine_test_df))
+    accuracy_test = accuracy_score(preds_test.iloc[:, 0].astype(int).values, q.app.wine_test_df.target.values)
+
+    q.client.dai_instances = list_dai_instances(refresh_token=q.auth.refresh_token)
+
+    q.page['inputs_dai_cloud'] = cards.inputs_dai_cloud(
+        dai_instances=q.client.dai_instances,
+        dai_instance_id=q.client.dai_instance_id,
+        dai_accuracy=q.client.dai_accuracy,
+        dai_time=q.client.dai_time,
+        dai_interpretability=q.client.dai_interpretability
+    )
+
+    q.page['outputs_dai_cloud'] = cards.outputs_dai_cloud(
+        dai_instance_name=q.client.dai_instance_name,
+        dai_instance_id=q.client.dai_instance_id,
+        mlops_endpoint_url=mlops_endpoint_url,
+        accuracy_test=accuracy_test,
+        preds_test=preds_test
+    )
+
+    await q.page.save()
+
+
+@on('refresh_dai_instances')
+async def refresh_dai_instances(q: Q):
+    """
+    Refresh DAI instances.
+    """
+
+    logging.info('Refreshing DAI instances')
+
+    q.client.dai_instances = list_dai_instances(access_token=q.auth.access_token)
+
+    q.page['inputs_dai_cloud'] = cards.inputs_dai_cloud(dai_instances=q.client.dai_instances)
 
     await q.page.save()
 
@@ -288,8 +367,40 @@ async def handle_error(q: Q, error: str):
         q_app=expando_to_dict(q.app),
         q_user=expando_to_dict(q.user),
         q_client=expando_to_dict(q.client),
+        q_events=expando_to_dict(q.events),
         q_args=expando_to_dict(q.args)
     )
+
+    await q.page.save()
+
+
+@on('restart')
+async def restart(q: Q):
+    """
+    Restart app.
+    """
+
+    q.page['meta'].redirect = '#home'
+    q.client.client_initialized = False
+
+    await q.page.save()
+
+
+@on('report')
+async def report(q: Q):
+    """
+    Report error details.
+    """
+
+    q.page['error'].items[4].separator.visible = True
+    q.page['error'].items[5].text.visible = True
+    q.page['error'].items[6].text_l.visible = True
+    q.page['error'].items[7].text.visible = True
+    q.page['error'].items[8].text.visible = True
+    q.page['error'].items[9].text.visible = True
+    q.page['error'].items[10].text.visible = True
+    q.page['error'].items[11].text.visible = True
+    q.page['error'].items[12].text.visible = True
 
     await q.page.save()
 
