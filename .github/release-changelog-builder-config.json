@@ -1,19 +1,15 @@
 {
   "categories": [
     {
-      "title": "# Features",
+      "title": "# Added",
       "labels": ["type/feature"]
     },
     {
-      "title": "# Fixes",
+      "title": "# Fixed",
       "labels": ["type/bug"]
     },
     {
-      "title": "# Build",
-      "labels": ["type/build"]
-    },
-    {
-      "title": "# Refactoring",
+      "title": "# Changed",
       "labels": ["type/refactoring"]
     },
     {
