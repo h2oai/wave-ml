@@ -27,8 +27,19 @@ jobs:
       - name: Build package
         run: make release
 
-      - name: Echo
-        run: |
-          ls dist/
-          echo "h2o_wave_ml-${{ env.VERSION }}-py3-none-any.whl"
-          echo "${{steps.build_changelog.outputs.changelog}}"
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          tag_name: v${{ env.VERSION }}-testing
+          release_name: v${{ env.VERSION }}-testing
+          body: ${{ steps.build_changelog.outputs.changelog }}
+          draft: true
+
+      - name: Upload Package to Release
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/h2o_wave_ml-${{ env.VERSION }}-py3-none-any.whl
+          asset_name: h2o_wave_ml-${{ env.VERSION }}-py3-none-any.whl
+          asset_content_type: application/x-pywheel+zip
