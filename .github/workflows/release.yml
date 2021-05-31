@@ -30,5 +30,5 @@ jobs:
       - name: Echo
         run: |
           ls dist/
-          echo "h2o_wave_ml-{{ env.VERSION }}-py3-none-any.whl"
+          echo "h2o_wave_ml-${{ env.VERSION }}-py3-none-any.whl"
           echo "${{steps.build_changelog.outputs.changelog}}"
