@@ -8,6 +8,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set Version
+        uses: echo "VERSION=$(cat VERSION)" >> $GITHUB_ENV
+
       - name: Build Changelog
         id: build_changelog
         uses: mikepenz/release-changelog-builder-action@v1
@@ -16,5 +19,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.7'
+
+      - name: Build package
+        run: make release
+
       - name: Echo
-        run: echo "${{steps.build_changelog.outputs.changelog}}"
+        run: |
+          ls dist/
+          echo "h2o_wave_ml-{{ env.VERSION }}-py3-none-any.whl"
+          echo "${{steps.build_changelog.outputs.changelog}}"
