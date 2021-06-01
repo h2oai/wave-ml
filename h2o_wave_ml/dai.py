@@ -217,7 +217,7 @@ class _DAIModel(Model):
         }
 
         if model_metric != ModelMetric.AUTO:
-            if 'scorer' not in params.get('scorer', []):
+            if 'scorer' not in params.keys():
                 params['scorer'] = model_metric.name
             else:
                 warnings.warn('the `dai_scorer` will be used instead of `model_metric`')
