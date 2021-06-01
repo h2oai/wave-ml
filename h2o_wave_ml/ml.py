@@ -18,7 +18,7 @@ import h2o
 
 from .config import _config
 from .dai import _DAIModel
-from .h2o3 import _H2O3Model
+from .h2o3 import _H2O3Model, _get_categorical_columns
 from .types import Model, ModelMetric, ModelType, TaskType, PandasDataFrame
 
 
@@ -191,4 +191,5 @@ def load_model(file_path: str) -> Model:
     _H2O3Model.ensure()
 
     model = h2o.upload_model(path=file_path)
-    return _H2O3Model(model)
+    categorical_columns = _get_categorical_columns(model)
+    return _H2O3Model(model, categorical_columns)

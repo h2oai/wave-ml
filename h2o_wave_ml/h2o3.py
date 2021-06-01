@@ -11,8 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import json
 from pathlib import Path
+import tempfile
 from typing import Optional, List, Tuple
 
 import h2o
@@ -38,20 +39,6 @@ def _is_classification_task(frame: h2o.H2OFrame, target: str) -> bool:
     return False
 
 
-def _create_h2o3_frame(data: Optional[List[List]] = None, file_path: str = '',
-                       df: Optional[PandasDataFrame] = None) -> h2o.H2OFrame:
-    if data is not None:
-        return h2o.H2OFrame(python_obj=data, header=1)
-    elif df is not None:
-        return h2o.H2OFrame(python_obj=df)
-    elif file_path:
-        if Path(file_path).exists():
-            return h2o.import_file(file_path)
-        else:
-            raise ValueError('file not found')
-    raise ValueError('no data input')
-
-
 def _make_project_id() -> str:
     """Generates a random project id."""
 
@@ -66,6 +53,20 @@ def _decode_from_frame(data) -> List[Tuple]:
         values = [float(item) for item in row[1:]]
         ret.append(tuple([row[0], *values]))
     return ret
+
+
+def _get_categorical_columns(model: H2OEstimator) -> List[str]:
+    with tempfile.TemporaryDirectory() as tmp_dir_name:
+        file_path = model.save_model_details(path=tmp_dir_name)
+
+        with open(file_path) as json_file:
+            data = json.load(json_file)
+
+    target = data['response_column_name']
+    names = data['output']['names']
+    types = data['output']['column_types']
+    return [names[i] for i, t in enumerate(types)
+            if t == 'Enum' and names[i] != target]
 
 
 class _H2O3Model(Model):
@@ -96,9 +97,10 @@ class _H2O3Model(Model):
         '_h2o3_export_checkpoints_dir'
     ]
 
-    def __init__(self, model: H2OEstimator):
+    def __init__(self, model: H2OEstimator, categorical_columns: List[str]):
         super().__init__(ModelType.H2O3)
         self.model = model
+        self._column_types = {key: 'enum' for key in categorical_columns}
 
     @classmethod
     def ensure(cls):
@@ -183,7 +185,8 @@ class _H2O3Model(Model):
         if aml.leader is None:
             raise ValueError('no model available')
 
-        return _H2O3Model(aml.leader)
+        categorical_columns_ = _get_categorical_columns(aml.leader)  # Categorical from model itself.
+        return _H2O3Model(aml.leader, categorical_columns_)
 
     @classmethod
     def get(cls, model_id: str) -> Model:
@@ -192,11 +195,24 @@ class _H2O3Model(Model):
         cls.ensure()
 
         aml = h2o.automl.get_automl(model_id)
-        return _H2O3Model(aml.leader)
+        categorical_columns = _get_categorical_columns(aml.leader)
+        return _H2O3Model(aml.leader, categorical_columns)
 
     def predict(self, data: Optional[List[List]] = None, file_path: str = '',
                 test_df: Optional[PandasDataFrame] = None, **kwargs) -> List[Tuple]:
-        input_frame = _create_h2o3_frame(data, file_path, test_df)
+
+        if data is not None:
+            input_frame = h2o.H2OFrame(python_obj=data, header=1, column_types=self._column_types)
+        elif test_df is not None:
+            input_frame = h2o.H2OFrame(python_obj=test_df, column_types=self._column_types)
+        elif file_path:
+            if Path(file_path).exists():
+                input_frame = h2o.import_file(file_path, col_types=self._column_types)
+            else:
+                raise ValueError('file not found')
+        else:
+            raise ValueError('no data input')
+
         output_frame = self.model.predict(input_frame)
         data = output_frame.as_data_frame(use_pandas=False, header=False)
         return _decode_from_frame(data)
