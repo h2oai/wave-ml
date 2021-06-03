@@ -35,6 +35,8 @@ from .utils import _make_id, _remove_prefix, _is_mlops_imported, _connect_to_ste
 _INT_TO_CAT_THRESHOLD = 50
 _MLOPS_REFRESH_STATUS_INTERVAL = 1
 _MLOPS_MAX_WAIT_TIME = 300
+_AUTODOC_MAX_WAIT_TIME = 300
+_AUTODOC_REFRESH_STATUS_INTERVAL = 1
 
 
 def _determine_task_type(summary) -> str:
@@ -63,6 +65,22 @@ def _wait_for_deployment(mlops_client, deployment_id: str):
             mlops.DeployGetDeploymentStatusRequest(deployment_id=deployment_id)).deployment_status
         if time.monotonic() > deadline:
             raise RuntimeError('deployment timeout error')
+
+
+def _wait_for_autodoc(experiment):
+
+    def check_autodoc() -> bool:
+        return 'autodoc' in experiment.artifacts.list()
+
+    deadline = time.monotonic() + _MLOPS_MAX_WAIT_TIME
+
+    has_autodoc = check_autodoc()
+    while not has_autodoc:
+        time.sleep(_AUTODOC_REFRESH_STATUS_INTERVAL)
+        has_autodoc = check_autodoc()
+        if time.monotonic() > deadline:
+            warnings.warn('autodoc not available')
+            break
 
 
 def _encode_from_data(data: List[List]) -> Dict:
@@ -161,7 +179,7 @@ class _DAIModel(Model):
                     if not instance.is_master_ready():
                         raise RuntimeError('DAI master node not ready')
                 elif instance_name:
-                    instance = DriverlessClient.get_instance(name=instance_name)
+                    instance = DriverlessClient().get_instance(name=instance_name)
                     if instance.status() == 'stopped':
                         raise RuntimeError('DAI instance not ready: stopped')
                     elif instance.status() == 'failed':
@@ -250,6 +268,8 @@ class _DAIModel(Model):
             task=task,
             **params,
         )
+
+        _wait_for_autodoc(experiment)
 
         return experiment
 
