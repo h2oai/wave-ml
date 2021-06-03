@@ -12,13 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from pathlib import Path
 import sys
-from typing import Tuple, Dict, List
+from typing import Tuple, Dict, List, Optional
 import uuid
 from urllib.parse import urljoin
 
 try:
     import h2osteam
+    import mlops
 except ModuleNotFoundError:
     pass
 import requests
@@ -129,3 +131,53 @@ def list_dai_multinodes(access_token: str = '', refresh_token: str = '') -> List
     _connect_to_steam(access_token)
     multinodes = h2osteam.api().get_driverless_multinodes()
     return [m['name'] for m in multinodes]
+
+
+def _get_autodoc_artifact(mlops_client, model_id: str) -> Optional[mlops.StorageArtifact]:
+    response = mlops_client.storage.artifact.list_entity_artifacts(
+        mlops.StorageListEntityArtifactsRequest(entity_id=model_id))
+    for artifact in response.artifact:
+        if artifact.type == 'dai/autoreport':
+            return artifact
+    return None
+
+
+def save_autodoc(project_id: str, output_dir_path: str, access_token: str = '', refresh_token: str = '') -> str:
+    """Saves an autodoc document from MLOps to the given location.
+
+    Access or refresh token is required in order to connect to MLOps.
+
+    Args:
+        project_id: MLOps project id.
+        output_dir_path: A directory where the doc will be saved.
+        access_token: Access token to authenticate with MLOps.
+        refresh_token: Refresh token to authenticate with MLOps.
+
+    Returns:
+        The file path to the saved report.
+
+    """
+
+    if refresh_token:
+        access_token, refresh_token = _refresh_token(refresh_token, _config.oidc_provider_url,
+                                                     _config.oidc_client_id, _config.oidc_client_secret)
+
+    mlops_client = mlops.Client(gateway_url=_config.mlops_gateway, token_provider=lambda: access_token)
+    response = mlops_client.storage.experiment.list_experiments(
+        mlops.StorageListExperimentsRequest(project_id=project_id))
+
+    # There should be a strategy to pick the right experiment instead of picking a zeroth one.
+    # Wave ML creates a one project per experiment.
+    model_id = response.experiment[0].id
+
+    autodoc = _get_autodoc_artifact(mlops_client, model_id)
+    if autodoc is None:
+        raise ValueError(f'no autodoc available for model {model_id}')
+
+    file_name = f'autodoc_{model_id}.docx'
+    autodoc_path = str(Path(output_dir_path, file_name))
+
+    with open(autodoc_path, 'wb') as f:
+        mlops_client.storage.artifact.download_artifact(artifact_id=autodoc.id, file=f)
+
+    return autodoc_path
