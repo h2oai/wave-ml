@@ -155,9 +155,10 @@ class _DAIModel(Model):
         '_dai_config_overrides'
     ]
 
-    def __init__(self, endpoint_url: str):
+    def __init__(self, endpoint_url: str, project_id: str):
         super().__init__(ModelType.DAI)
         self._endpoint_url = endpoint_url
+        self._project_id = project_id
 
     @classmethod
     def _get_instance(cls, access_token: str = '', **kwargs):
@@ -274,7 +275,7 @@ class _DAIModel(Model):
         return experiment
 
     @classmethod
-    def _deploy_model(cls, experiment, access_token: str, deployment_env: str) -> str:
+    def _deploy_model(cls, experiment, access_token: str, deployment_env: str) -> Tuple[str, str]:
 
         if not _is_mlops_imported():
             raise RuntimeError('no MLOps package installed (install mlops)')
@@ -323,7 +324,7 @@ class _DAIModel(Model):
 
         statuses = mlops_client.deployer.deployment_status.list_deployment_statuses(
             mlops.DeployListDeploymentStatusesRequest(project_id=project_id))
-        return statuses.deployment_status[0].scorer.score.url
+        return project_id, statuses.deployment_status[0].scorer.score.url
 
     @classmethod
     def build(cls, train_file_path: str, train_df: Optional[PandasDataFrame], target_column: str,
@@ -350,9 +351,9 @@ class _DAIModel(Model):
             raise ValueError('no token credentials for MLOps')
 
         deployment_env = kwargs.get('_mlops_deployment_env', 'PROD')
-        endpoint_url = cls._deploy_model(experiment, access_token, deployment_env)
+        project_id, endpoint_url = cls._deploy_model(experiment, access_token, deployment_env)
 
-        return _DAIModel(endpoint_url)
+        return _DAIModel(endpoint_url, project_id)
 
     @classmethod
     def get(cls, project_id: str, endpoint_url: str = '', access_token: str = '',
@@ -360,7 +361,7 @@ class _DAIModel(Model):
         """Retrieves a remote model given its ID."""
 
         if endpoint_url:
-            return _DAIModel(endpoint_url)
+            return _DAIModel(endpoint_url, '')
 
         if not _is_mlops_imported():
             raise RuntimeError('no MLOps package installed (install mlops)')
@@ -384,7 +385,7 @@ class _DAIModel(Model):
         # There should be a strategy to pick the right deployment instead of picking a zeroth one.
         endpoint_url = statuses.deployment_status[0].scorer.score.url
 
-        return _DAIModel(endpoint_url)
+        return _DAIModel(endpoint_url, project_id)
 
     def predict(self, data: Optional[List[List]] = None, file_path: str = '',
                 test_df: Optional[PandasDataFrame] = None, **kwargs) -> List[Tuple]:
@@ -406,3 +407,9 @@ class _DAIModel(Model):
     @property
     def endpoint_url(self) -> Optional[str]:
         return self._endpoint_url
+
+    @property
+    def project_id(self) -> Optional[str]:
+        if self._project_id:
+            return self._project_id
+        return None

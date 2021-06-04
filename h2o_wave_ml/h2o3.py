@@ -221,3 +221,7 @@ class _H2O3Model(Model):
     @property
     def endpoint_url(self) -> Optional[str]:
         return None
+
+    @property
+    def project_id(self) -> Optional[str]:
+        return None
