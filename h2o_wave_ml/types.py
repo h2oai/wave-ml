@@ -87,4 +87,4 @@ class Model(abc.ABC):
     @property
     @abc.abstractmethod
     def project_id(self) -> Optional[str]:
-        """An MLOps project id, if any."""
+        """The MLOps project id, if any."""
