@@ -99,9 +99,9 @@ async def serve(q: Q):
     LOCAL_TEST = True
     if LOCAL_TEST:
         q.app.env_vars['DEV_STEAM_URL'] = 'https://steam.demo.h2o.ai/'
-        q.app.env_vars['STEAM_API_TOKEN'] = 'pat_j3vgh4gl7py3ewyoexgm0on3fj1w0fxpozgp'
-        q.auth.username = 'trushant.kalyanpur@h2o.ai'
-        q.auth.subject = 'trushant'
+        q.app.env_vars['STEAM_API_TOKEN'] = '<steam API key here>'
+        q.auth.username = '<user email>'
+        q.auth.subject = '<user name>'
 
     if not await handle_on(q):
         await main_menu(q)
