@@ -67,6 +67,23 @@ def _wait_for_deployment(mlops_client, deployment_id: str):
             raise RuntimeError('deployment timeout error')
 
 
+def _list_all_deployment_statuses(mlops_client) -> List[mlops.DeployDeploymentStatus]:
+    """Gets all user deployemnt statuses.
+
+    NOTE: Function has long execution time. Might be worth to alter MLOps API.
+
+    """
+
+    response = mlops_client.storage.project.list_projects(mlops.StorageListProjectsRequest())
+    project_ids = [project.id for project in response.project]
+    statuses = []
+    for project_id in project_ids:
+        response = mlops_client.deployer.deployment_status.list_deployment_statuses(
+            mlops.DeployListDeploymentStatusesRequest(project_id=project_id))
+        statuses.extend([status for status in response.deployment_status])
+    return statuses
+
+
 def _wait_for_autodoc(experiment):
 
     def check_autodoc() -> bool:
@@ -360,7 +377,7 @@ class _DAIModel(Model):
             refresh_token: str = '') -> Optional[Model]:
         """Retrieves a remote model given its ID."""
 
-        if endpoint_url:
+        if endpoint_url and not _is_mlops_imported():
             return _DAIModel(endpoint_url, '')
 
         if not _is_mlops_imported():
@@ -369,12 +386,27 @@ class _DAIModel(Model):
         if not _config.mlops_gateway:
             raise ValueError('no MLOps gateway specified')
 
+        if not access_token and not refresh_token:
+            raise ValueError('no token credentials for MLOps')
+
         if refresh_token:
             access_token, _ = _refresh_token(refresh_token, _config.oidc_provider_url,
                                              _config.oidc_client_id, _config.oidc_client_secret)
 
         mlops_client = mlops.Client(gateway_url=_config.mlops_gateway,
                                     token_provider=lambda: access_token)
+
+        if endpoint_url:
+            statuses = _list_all_deployment_statuses(mlops_client)
+
+            deployment_id = [status.deployment_id for status in statuses if status.scorer.score.url == endpoint_url]
+            if not deployment_id:
+                return _DAIModel(endpoint_url, '')
+            deployment_id = deployment_id[0]
+
+            response = mlops_client.storage.deployment.get_deployment(
+                mlops.StorageGetDeploymentRequest(deployment_id=deployment_id))
+            return _DAIModel(endpoint_url, response.deployment.project_id)
 
         try:
             statuses = mlops_client.deployer.deployment_status.list_deployment_statuses(
