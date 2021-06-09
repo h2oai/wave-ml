@@ -14,7 +14,7 @@
 
 from pathlib import Path
 import sys
-from typing import Tuple, Dict, List, Optional
+from typing import Tuple, Dict, List
 import uuid
 from urllib.parse import urljoin
 
@@ -133,7 +133,7 @@ def list_dai_multinodes(access_token: str = '', refresh_token: str = '') -> List
     return [m['name'] for m in multinodes]
 
 
-def _get_autodoc_artifact(mlops_client, model_id: str) -> Optional[mlops.StorageArtifact]:
+def _get_autodoc_artifact(mlops_client, model_id: str):  # -> Optional[mlops.StorageArtifact]:
     response = mlops_client.storage.artifact.list_entity_artifacts(
         mlops.StorageListEntityArtifactsRequest(entity_id=model_id))
     for artifact in response.artifact:

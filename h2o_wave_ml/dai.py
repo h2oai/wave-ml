@@ -67,7 +67,7 @@ def _wait_for_deployment(mlops_client, deployment_id: str):
             raise RuntimeError('deployment timeout error')
 
 
-def _list_all_deployment_statuses(mlops_client) -> List[mlops.DeployDeploymentStatus]:
+def _list_all_deployment_statuses(mlops_client) -> List:  # -> List[mlops.DeployDeploymentStatus]:
     """Gets all user deployemnt statuses.
 
     NOTE: Function has long execution time. Might be worth to alter MLOps API.
