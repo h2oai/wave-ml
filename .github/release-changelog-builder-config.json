@@ -2,19 +2,19 @@
   "categories": [
     {
       "title": "# Added",
-      "labels": ["type/feature"]
+      "labels": ["type/feature", "pr/feature"]
     },
     {
       "title": "# Fixed",
-      "labels": ["type/bug"]
+      "labels": ["type/bug", "pr/fix"]
     },
     {
       "title": "# Changed",
-      "labels": ["type/refactoring"]
+      "labels": ["type/refactoring", "pr/update"]
     },
     {
       "title": "# Documentation",
-      "labels": ["type/docs"]
+      "labels": ["type/docs", "pr/docs"]
     }
   ],
   "ignore_labels": [
