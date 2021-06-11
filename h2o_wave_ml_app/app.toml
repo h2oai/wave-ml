@@ -33,3 +33,11 @@ SecretKey = "gateway"
 [[Env]]
 Name = "H2O_WAVE_ML_STEAM_VERIFY_SSL"
 Value = "False"
+
+[[Env]]
+Name = "STEAM_URL"
+Value = "https://steam.cloud.h2o.ai"
+
+[[Env]]
+Name = "MLOPS_URL"
+Value = "https://mlops.cloud.h2o.ai"

@@ -1,4 +1,5 @@
 import logging
+import os
 import pandas as pd
 from pathlib import Path
 
@@ -12,6 +13,9 @@ from sklearn.model_selection import train_test_split
 from . import cards
 
 logging.basicConfig(format='%(levelname)s:\t[%(asctime)s]\t%(message)s', level=logging.INFO)
+
+STEAM_URL = os.environ.get('STEAM_URL')
+MLOPS_URL = os.environ.get('MLOPS_URL')
 
 
 @app('/')
@@ -233,7 +237,10 @@ async def demo_dai_cloud(q: Q):
 
     q.client.dai_instances = list_dai_instances(access_token=q.auth.access_token)
 
-    q.page['inputs_dai_cloud'] = cards.inputs_dai_cloud(dai_instances=q.client.dai_instances)
+    q.page['inputs_dai_cloud'] = cards.inputs_dai_cloud(
+        dai_instances=q.client.dai_instances,
+        steam_url=STEAM_URL
+    )
 
     await q.page.save()
 
@@ -252,7 +259,25 @@ async def train_dai_cloud(q: Q):
         if dai_instance['id'] == int(q.client.dai_instance_id):
             q.client.dai_instance_name = dai_instance['name']
 
-    wave_model = build_model(
+    q.page['inputs_dai_cloud'] = cards.inputs_dai_cloud(
+        dai_instances=q.client.dai_instances,
+        dai_instance_id=q.client.dai_instance_id,
+        dai_accuracy=q.client.dai_accuracy,
+        dai_time=q.client.dai_time,
+        dai_interpretability=q.client.dai_interpretability
+    )
+    q.page['inputs_dai_cloud'].items[6].buttons.items[0].button.disabled = True
+
+    q.page['outputs_dai_cloud'] = cards.outputs_dai_cloud(
+        dai_instance_name=q.client.dai_instance_name,
+        dai_instance_id=q.client.dai_instance_id,
+        steam_url=STEAM_URL
+    )
+
+    await q.page.save()
+
+    wave_model = await q.run(
+        build_model,
         train_df=q.app.wine_train_df,
         target_column='target',
         model_type=ModelType.DAI,
@@ -263,7 +288,7 @@ async def train_dai_cloud(q: Q):
         _dai_interpretability=q.client.dai_interpretability
     )
 
-    mlops_endpoint_url = wave_model.endpoint_url
+    mlops_project_id = wave_model.project_id
 
     preds_test = pd.DataFrame(wave_model.predict(test_df=q.app.wine_test_df))
     accuracy_test = accuracy_score(preds_test.iloc[:, 0].astype(int).values, q.app.wine_test_df.target.values)
@@ -281,7 +306,9 @@ async def train_dai_cloud(q: Q):
     q.page['outputs_dai_cloud'] = cards.outputs_dai_cloud(
         dai_instance_name=q.client.dai_instance_name,
         dai_instance_id=q.client.dai_instance_id,
-        mlops_endpoint_url=mlops_endpoint_url,
+        steam_url=STEAM_URL,
+        mlops_url=MLOPS_URL,
+        mlops_project_id=mlops_project_id,
         accuracy_test=accuracy_test,
         preds_test=preds_test
     )

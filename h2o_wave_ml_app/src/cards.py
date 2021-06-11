@@ -530,6 +530,7 @@ def outputs_h2oaml_local(
 
 def inputs_dai_cloud(
     dai_instances: list,
+    steam_url: str = None,
     dai_instance_id: str = None,
     dai_accuracy: int = 1,
     dai_time: int = 1,
@@ -543,18 +544,18 @@ def inputs_dai_cloud(
         ui.choice(
             name=str(x['id']),
             label=f'{x["name"]} ({x["status"].capitalize()})',
-            disabled=False if x['status'] == 'running' else True
+            disabled=x['status'] != 'running'
         ) for x in dai_instances
     ]
 
     dai_running_instances = [str(x['id']) for x in dai_instances if x['status'] == 'running']
 
-    if len(dai_running_instances) == 0:
-        disable_training = True
-    else:
+    if dai_running_instances:
+        disable_training = False
         if dai_instance_id is None:
             dai_instance_id = dai_running_instances[0]
-        disable_training = False
+    else:
+        disable_training = True
 
     card = ui.form_card(
         box='inputs_dai_cloud',
@@ -595,6 +596,10 @@ def inputs_dai_cloud(
                 choices=choices_dai_instances,
                 value=dai_instance_id
             ),
+            ui.text(
+                content=f'''No Driverless AI instances available. You may create one in 
+                    <a href="{steam_url}/#/driverless/instances" target="_blank">AI Engines</a> and refresh.''',
+                visible=disable_training),
             ui.expander(
                 name='dai_hyperparameters',
                 label='Settings',
@@ -627,33 +632,39 @@ def inputs_dai_cloud(
 def outputs_dai_cloud(
     dai_instance_id: int,
     dai_instance_name: str,
-    mlops_endpoint_url: str,
-    accuracy_test: float,
-    preds_test: pd.DataFrame
+    steam_url: str = None,
+    mlops_url: str = None,
+    mlops_project_id: str = None,
+    accuracy_test: float = None,
+    preds_test: pd.DataFrame = None
 ) -> ui.FormCard:
     """
     Card for outputs of Driverless AI (Cloud).
     """
 
-    card = ui.form_card(
-        box='outputs_dai_cloud',
-        items=[
-            ui.stats(
-                items=[
-                    ui.stat(
-                        label='Model',
-                        value='Driverless AI',
-                        caption=f'Test Accuracy: {round(accuracy_test * 100 - 3, 2)}%',
-                        icon='Processing',
-                        icon_color='#CDDD38'
-                    )
-                ],
-                justify='center'
-            ),
-            ui.separator(),
-            ui.text(content=f'''<center>Driverless AI Instance: 
-                <a href="https://steam.cloud.h2o.ai/proxy/driverless/{dai_instance_id}/#/experiments" target="_blank">
-                {dai_instance_name}</center>'''),
+    card_items = [
+        ui.stats(
+            items=[
+                ui.stat(
+                    label='Model',
+                    value='Driverless AI',
+                    caption='',
+                    icon='Processing',
+                    icon_color='#CDDD38'
+                )
+            ],
+            justify='center'
+        ),
+        ui.separator(),
+        ui.text(content=f'''<center>Driverless AI Experiment: 
+            <a href="{steam_url}/oidc-login-start?forward=/proxy/driverless/{dai_instance_id}/openid/callback" target="_blank">{dai_instance_name}</a>
+            </center>''')
+    ]
+
+    if mlops_project_id is None:
+        card_items.extend([ui.progress(label='Training Driverless AI model', caption='This might take some time...')])
+    else:
+        card_items.extend([
             ui.text(content='<center>Sample Predictions</center>'),
             ui.table(
                 name='table_dai_cloud_preds',
@@ -671,9 +682,13 @@ def outputs_dai_cloud(
                 ]
             ),
             ui.text(content=f'''<center>MLOps Deployment: 
-                <a href="https://mlops.cloud.h2o.ai/projects" target="_blank">
-                {mlops_endpoint_url}</center>''')
-        ]
+                <a href="{mlops_url}/projects/{mlops_project_id}" target="_blank">{mlops_project_id}</a>
+                </center>''')
+        ])
+
+    card = ui.form_card(
+        box='outputs_dai_cloud',
+        items=card_items
     )
 
     return card
