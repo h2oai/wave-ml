@@ -5,7 +5,7 @@ from pathlib import Path
 
 from h2o_wave import Q, main, app, copy_expando, expando_to_dict, handle_on, on
 from h2o_wave_ml import build_model, ModelType
-from h2o_wave_ml.utils import list_dai_instances
+from h2o_wave_ml.utils import list_dai_instances, save_autodoc
 from sklearn.datasets import load_wine
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
@@ -235,7 +235,7 @@ async def demo_dai_cloud(q: Q):
 
     await drop_cards(q, ['demo_h2oaml_local', 'demo_h2oaml_cloud', 'demo_dai_cloud'])
 
-    q.client.dai_instances = list_dai_instances(access_token=q.auth.access_token)
+    q.client.dai_instances = list_dai_instances(refresh_token=q.auth.refresh_token)
 
     q.page['inputs_dai_cloud'] = cards.inputs_dai_cloud(
         dai_instances=q.client.dai_instances,
@@ -293,6 +293,14 @@ async def train_dai_cloud(q: Q):
     preds_test = pd.DataFrame(wave_model.predict(test_df=q.app.wine_test_df))
     accuracy_test = accuracy_score(preds_test.iloc[:, 0].astype(int).values, q.app.wine_test_df.target.values)
 
+    path_autodoc = save_autodoc(
+        project_id=wave_model.project_id,
+        output_dir_path=Path(),
+        refresh_token=q.auth.refresh_token
+    )
+
+    q.client.path_autodoc, *_ = await q.site.upload([path_autodoc])
+
     q.client.dai_instances = list_dai_instances(refresh_token=q.auth.refresh_token)
 
     q.page['inputs_dai_cloud'] = cards.inputs_dai_cloud(
@@ -310,7 +318,8 @@ async def train_dai_cloud(q: Q):
         mlops_url=MLOPS_URL,
         mlops_project_id=mlops_project_id,
         accuracy_test=accuracy_test,
-        preds_test=preds_test
+        preds_test=preds_test,
+        path_autodoc=q.client.path_autodoc
     )
 
     await q.page.save()
@@ -324,7 +333,7 @@ async def refresh_dai_instances(q: Q):
 
     logging.info('Refreshing DAI instances')
 
-    q.client.dai_instances = list_dai_instances(access_token=q.auth.access_token)
+    q.client.dai_instances = list_dai_instances(refresh_token=q.auth.refresh_token)
 
     q.page['inputs_dai_cloud'] = cards.inputs_dai_cloud(dai_instances=q.client.dai_instances)
 

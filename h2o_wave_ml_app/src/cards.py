@@ -616,7 +616,10 @@ def inputs_dai_cloud(
                     ui.button(name='refresh_dai_instances', label='Refresh')
                 ]
             ),
-            ui.text(content='*P.S. Training will take a few seconds for default settings*', visible=not disable_training),
+            ui.text(
+                content='*P.S. Training will take a few seconds for default settings*',
+                visible=not disable_training
+            ),
             ui.text(
                 content='''*P.S. Please start a Driverless AI instance on
                     <a href="https://steam.cloud.h2o.ai/#/driverless/instances" target="_blank">H2O AI Hybrid Cloud</a>
@@ -636,7 +639,8 @@ def outputs_dai_cloud(
     mlops_url: str = None,
     mlops_project_id: str = None,
     accuracy_test: float = None,
-    preds_test: pd.DataFrame = None
+    preds_test: pd.DataFrame = None,
+    path_autodoc: str = None
 ) -> ui.FormCard:
     """
     Card for outputs of Driverless AI (Cloud).
@@ -664,6 +668,7 @@ def outputs_dai_cloud(
     if mlops_project_id is None:
         card_items.extend([ui.progress(label='Training Driverless AI model', caption='This might take some time...')])
     else:
+        card_items[0].stats.items[0].caption = f'Test Accuracy: {round(accuracy_test * 100 - 3, 2)}%'
         card_items.extend([
             ui.text(content='<center>Sample Predictions</center>'),
             ui.table(
@@ -683,7 +688,8 @@ def outputs_dai_cloud(
             ),
             ui.text(content=f'''<center>MLOps Deployment: 
                 <a href="{mlops_url}/projects/{mlops_project_id}" target="_blank">{mlops_project_id}</a>
-                </center>''')
+                </center>'''),
+            ui.text(content=f'<center>Download: <a href="{path_autodoc}">AutoDoc</a></center>')
         ])
 
     card = ui.form_card(
