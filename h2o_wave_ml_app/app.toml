@@ -1,8 +1,8 @@
 [App]
 Name = "ai.h2o.wave.h2o_wave_ml"
-Version = "0.7.1"
+Version = "0.8.1"
 Title = "H2O Wave ML"
-Description = "Demo workflow, code snippets and example resources for using H2O Wave ML."
+Description = "Demo workflow, code snippets and example resources for H2O Wave ML."
 LongDescription = "LongDescription.md"
 Category = "Machine Learning"
 Keywords = ["ai", "h2o", "ml", "wave"]

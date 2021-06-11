@@ -33,7 +33,7 @@ DROPPABLE_CARDS = [
 
 _FUNCTION_CHOICES = [ui.choice(name=str(x), label=str(x)) for x in [
     'Train Model', 'Score Model', 'Save Model', 'Load Model', 'Get Model',
-    'List DAI Single Instances', 'List DAI Multinode Clusters'
+    'List DAI Single Instances', 'List DAI Multinode Clusters', 'Save AutoDoc'
 ]]
 _FUNCTION_DESCRIPTIONS = {
     'Train Model': 'Code snippet for training a model',
@@ -42,7 +42,8 @@ _FUNCTION_DESCRIPTIONS = {
     'Load Model': 'Code snippet for loading a model from a local path',
     'Get Model': 'Code snippet for fetching a model from H2O MLOps',
     'List DAI Single Instances': 'Code snippet for listing available Driverless AI single instances with Steam',
-    'List DAI Multinode Clusters': 'Code snippet for listing available Driverless AI multinode clusters with Steam'
+    'List DAI Multinode Clusters': 'Code snippet for listing available Driverless AI multinode clusters with Steam',
+    'Save AutoDoc': 'Code snippet for saving the AutoDoc of a model to a local path'
 }
 _FUNCTION_DOCUMENTATIONS = {
     'Train Model': ui.link(
@@ -78,6 +79,11 @@ _FUNCTION_DOCUMENTATIONS = {
     'List DAI Multinode Clusters': ui.link(
         label='list_dai_multinodes',
         path='https://wave.h2o.ai/docs/api/h2o_wave_ml/utils#list_dai_multinodes',
+        target=''
+    ),
+    'Save AutoDoc': ui.link(
+        label='save_autodoc',
+        path='https://wave.h2o.ai/docs/api/h2o_wave_ml/utils#save_autodoc',
         target=''
     )
 }
@@ -811,14 +817,7 @@ def dai_examples() -> ui.FormCard:
         box=ui.box(zone='dai_examples', height='565px'),
         items=[
             ui.separator(label='Driverless AI'),
-            ui.text(content='<center><b>Getting Started</b></center>'),
-            ui.text(content='''<center>
-                Training & Prediction
-                <br />Saving & Loading
-                <br />Setting Categorical Columns
-                <br />Configuring Hyperparameters
-                <br />Listing Instances & Clusters
-                </center>''')
+            ui.text(content='<center><i>Will be added soon</i></center>')
         ]
     )
 
