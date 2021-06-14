@@ -43,3 +43,5 @@ venv/
 /.idea
 *.state
 setup.alt.py
+.DS_Store
+*.wave
