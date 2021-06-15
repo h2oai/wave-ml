@@ -29,7 +29,7 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/h2oai/wave-ml',
-    packages=setuptools.find_packages(exclude=('examples',)),
+    packages=setuptools.find_packages(exclude=('examples', 'h2o_wave_ml_app')),
     classifiers=[
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.6',
