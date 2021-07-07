@@ -184,7 +184,7 @@ class _H2O3Model(Model):
         aml.train(x=x, y=target_column, training_frame=train_frame, validation_frame=validation_frame)
 
         if aml.leader is None:
-            raise ValueError('no model available')
+            raise RuntimeError('no model available')
 
         categorical_columns_ = _get_categorical_columns(aml.leader)  # Categorical from model itself.
         return _H2O3Model(aml.leader, categorical_columns_)
