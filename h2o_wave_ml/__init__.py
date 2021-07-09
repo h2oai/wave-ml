@@ -18,6 +18,7 @@ Python package `h2o_wave_ml` provides the API functions for automatic machine le
 
 from .ml import build_model, get_model, save_model, load_model  # noqa: F401
 from .types import Model, ModelType, ModelMetric, TaskType  # noqa: F401
+from .h2o3 import H2O3Model  # noqa: F401
 
 __pdoc__ = {
     'config': False,

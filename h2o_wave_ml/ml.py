@@ -18,7 +18,7 @@ import h2o
 
 from .config import _config
 from .dai import _DAIModel
-from .h2o3 import _H2O3Model, _get_categorical_columns
+from .h2o3 import H2O3Model, _get_categorical_columns
 from .types import Model, ModelMetric, ModelType, TaskType, PandasDataFrame
 
 
@@ -115,9 +115,12 @@ def build_model(*, target_column: str, train_file_path: str = '', train_df: Opti
 
     if model_type is not None:
         if model_type == ModelType.H2O3:
-            return _H2O3Model.build(train_file_path, train_df, target_column, model_metric, task_type,
-                                    categorical_columns, feature_columns, drop_columns, validation_file_path,
-                                    validation_df, **kwargs)
+            m = H2O3Model()
+            m.build(train_file_path, train_df, target_column, model_metric, task_type,
+                    categorical_columns, feature_columns, drop_columns, validation_file_path,
+                    validation_df, **kwargs)
+            return m
+
         elif model_type == ModelType.DAI:
             return _DAIModel.build(train_file_path, train_df, target_column, model_metric, task_type,
                                    categorical_columns, feature_columns, drop_columns, validation_file_path,
@@ -128,8 +131,10 @@ def build_model(*, target_column: str, train_file_path: str = '', train_df: Opti
                                feature_columns, drop_columns, validation_file_path, validation_df, access_token,
                                refresh_token, **kwargs)
 
-    return _H2O3Model.build(train_file_path, train_df, target_column, model_metric, task_type, categorical_columns,
-                            feature_columns, drop_columns, validation_file_path, validation_df, **kwargs)
+    m = H2O3Model()
+    m.build(train_file_path, train_df, target_column, model_metric, task_type, categorical_columns,
+            feature_columns, drop_columns, validation_file_path, validation_df, **kwargs)
+    return m
 
 
 def get_model(model_id: str = '', endpoint_url: str = '', model_type: Optional[ModelType] = None,
@@ -150,14 +155,19 @@ def get_model(model_id: str = '', endpoint_url: str = '', model_type: Optional[M
 
     if model_type is not None:
         if model_type == ModelType.H2O3:
-            return _H2O3Model.get(model_id)
+            m = H2O3Model()
+            m.get(model_id)
+            return m
+
         elif model_type == ModelType.DAI:
             return _DAIModel.get(model_id, endpoint_url, access_token, refresh_token)
 
     if _config.dai_address or _config.steam_address:
         return _DAIModel.get(model_id, endpoint_url, access_token, refresh_token)
 
-    return _H2O3Model.get(model_id)
+    m = H2O3Model()
+    m.get(model_id)
+    return m
 
 
 def save_model(model: Model, *, output_dir_path: str) -> str:
@@ -172,7 +182,7 @@ def save_model(model: Model, *, output_dir_path: str) -> str:
 
     """
 
-    if isinstance(model, _H2O3Model):
+    if isinstance(model, H2O3Model):
         return h2o.download_model(model.model, path=output_dir_path)
     raise NotImplementedError()
 
@@ -188,8 +198,12 @@ def load_model(file_path: str) -> Model:
 
     """
 
-    _H2O3Model.ensure()
+    H2O3Model.ensure()
 
     model = h2o.upload_model(path=file_path)
     categorical_columns = _get_categorical_columns(model)
-    return _H2O3Model(model, categorical_columns)
+
+    m = H2O3Model()
+    m.model = model
+    m._column_types = {key: 'enum' for key in categorical_columns}
+    return m

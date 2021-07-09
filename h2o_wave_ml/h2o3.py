@@ -70,7 +70,7 @@ def _get_categorical_columns(model: H2OEstimator) -> List[str]:
             if t == 'Enum' and names[i] != target]
 
 
-class _H2O3Model(Model):
+class H2O3Model(Model):
 
     _INIT = False
     _SUPPORTED_PARAMS = [
@@ -98,10 +98,10 @@ class _H2O3Model(Model):
         '_h2o3_export_checkpoints_dir'
     ]
 
-    def __init__(self, model: H2OEstimator, categorical_columns: List[str]):
+    def __init__(self):
         super().__init__(ModelType.H2O3)
-        self.model = model
-        self._column_types = {key: 'enum' for key in categorical_columns}
+        self.model = None
+        self._column_types = {}
 
     @classmethod
     def ensure(cls):
@@ -114,14 +114,13 @@ class _H2O3Model(Model):
                 h2o.init()
             cls._INIT = True
 
-    @classmethod
-    def build(cls, train_file_path: str, train_df: Optional[PandasDataFrame], target_column: str,
+    def build(self, train_file_path: str, train_df: Optional[PandasDataFrame], target_column: str,
               model_metric: ModelMetric, task_type: Optional[TaskType], categorical_columns: Optional[List[str]],
               feature_columns: Optional[List[str]], drop_columns: Optional[List[str]],
-              validation_file_path: str, validation_df: Optional[PandasDataFrame], **kwargs) -> Model:
+              validation_file_path: str, validation_df: Optional[PandasDataFrame], **kwargs):
         """Builds an H2O-3 based model."""
 
-        cls.ensure()
+        self.ensure()
 
         id_ = _make_project_id()
 
@@ -161,7 +160,7 @@ class _H2O3Model(Model):
         params = {
             _remove_prefix(key, '_h2o3_'): kwargs[key]
             for key in kwargs
-            if key in cls._SUPPORTED_PARAMS
+            if key in self._SUPPORTED_PARAMS
         }
 
         aml = H2OAutoML(project_name=id_,
@@ -187,20 +186,26 @@ class _H2O3Model(Model):
             raise RuntimeError('no model available')
 
         categorical_columns_ = _get_categorical_columns(aml.leader)  # Categorical from model itself.
-        return _H2O3Model(aml.leader, categorical_columns_)
 
-    @classmethod
-    def get(cls, model_id: str) -> Model:
+        self.model = aml.leader
+        self._column_types = {key: 'enum' for key in categorical_columns_}
+
+    def get(self, model_id: str):
         """Retrieves a remote model given its ID."""
 
-        cls.ensure()
+        self.ensure()
 
         aml = h2o.automl.get_automl(model_id)
         categorical_columns = _get_categorical_columns(aml.leader)
-        return _H2O3Model(aml.leader, categorical_columns)
+
+        self.model = aml.leader
+        self._column_types = {key: 'enum' for key in categorical_columns}
 
     def predict(self, data: Optional[List[List]] = None, file_path: str = '',
-                test_df: Optional[PandasDataFrame] = None, **kwargs) -> List[Tuple]:
+                test_df: Optional[PandasDataFrame] = None, **_kwargs) -> List[Tuple]:
+
+        if self.model is None:
+            raise RuntimeError('no model available')
 
         if data is not None:
             input_frame = h2o.H2OFrame(python_obj=data, header=1, column_types=self._column_types)
