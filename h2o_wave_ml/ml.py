@@ -17,7 +17,7 @@ from typing import Optional, List
 import h2o
 
 from .config import _config
-from .dai import _DAIModel
+from .dai import DAIModel
 from .h2o3 import H2O3Model, _get_categorical_columns
 from .types import Model, ModelMetric, ModelType, TaskType, PandasDataFrame
 
@@ -116,24 +116,18 @@ def build_model(*, target_column: str, train_file_path: str = '', train_df: Opti
     if model_type is not None:
         if model_type == ModelType.H2O3:
             m = H2O3Model()
-            m.build(train_file_path, train_df, target_column, model_metric, task_type,
-                    categorical_columns, feature_columns, drop_columns, validation_file_path,
-                    validation_df, **kwargs)
-            return m
+        else:  # model_type == ModelType.DAI:
+            m = DAIModel()
+    else:
+        if _config.dai_address or _config.steam_address:
+            m = DAIModel()
+        else:
+            m = H2O3Model()
 
-        elif model_type == ModelType.DAI:
-            return _DAIModel.build(train_file_path, train_df, target_column, model_metric, task_type,
-                                   categorical_columns, feature_columns, drop_columns, validation_file_path,
-                                   validation_df, access_token, refresh_token, **kwargs)
-
-    if _config.dai_address or _config.steam_address:
-        return _DAIModel.build(train_file_path, train_df, target_column, model_metric, task_type, categorical_columns,
-                               feature_columns, drop_columns, validation_file_path, validation_df, access_token,
-                               refresh_token, **kwargs)
-
-    m = H2O3Model()
     m.build(train_file_path, train_df, target_column, model_metric, task_type, categorical_columns,
-            feature_columns, drop_columns, validation_file_path, validation_df, **kwargs)
+            feature_columns, drop_columns, validation_file_path, validation_df, access_token,
+            refresh_token, **kwargs)
+
     return m
 
 
@@ -155,19 +149,15 @@ def get_model(model_id: str = '', endpoint_url: str = '', model_type: Optional[M
 
     if model_type is not None:
         if model_type == ModelType.H2O3:
-            m = H2O3Model()
-            m.get(model_id)
-            return m
+            return H2O3Model.get(model_id)
 
         elif model_type == ModelType.DAI:
-            return _DAIModel.get(model_id, endpoint_url, access_token, refresh_token)
+            return DAIModel.get(model_id, endpoint_url, access_token, refresh_token)
 
     if _config.dai_address or _config.steam_address:
-        return _DAIModel.get(model_id, endpoint_url, access_token, refresh_token)
+        return DAIModel.get(model_id, endpoint_url, access_token, refresh_token)
 
-    m = H2O3Model()
-    m.get(model_id)
-    return m
+    return H2O3Model.get(model_id)
 
 
 def save_model(model: Model, *, output_dir_path: str) -> str:
@@ -198,12 +188,8 @@ def load_model(file_path: str) -> Model:
 
     """
 
-    H2O3Model.ensure()
+    H2O3Model._ensure()
 
     model = h2o.upload_model(path=file_path)
     categorical_columns = _get_categorical_columns(model)
-
-    m = H2O3Model()
-    m.model = model
-    m._column_types = {key: 'enum' for key in categorical_columns}
-    return m
+    return H2O3Model(model, categorical_columns)

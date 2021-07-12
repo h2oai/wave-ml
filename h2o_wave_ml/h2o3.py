@@ -98,13 +98,14 @@ class H2O3Model(Model):
         '_h2o3_export_checkpoints_dir'
     ]
 
-    def __init__(self):
+    def __init__(self, model: Optional[H2OEstimator] = None, categorical_columns: Optional[List[str]] = None):
         super().__init__(ModelType.H2O3)
-        self.model = None
-        self._column_types = {}
+        self.model = model
+        if categorical_columns is not None:
+            self._column_types = {key: 'enum' for key in categorical_columns}
 
     @classmethod
-    def ensure(cls):
+    def _ensure(cls):
         """Initializes H2O-3 library."""
 
         if not cls._INIT:
@@ -117,10 +118,11 @@ class H2O3Model(Model):
     def build(self, train_file_path: str, train_df: Optional[PandasDataFrame], target_column: str,
               model_metric: ModelMetric, task_type: Optional[TaskType], categorical_columns: Optional[List[str]],
               feature_columns: Optional[List[str]], drop_columns: Optional[List[str]],
-              validation_file_path: str, validation_df: Optional[PandasDataFrame], **kwargs):
+              validation_file_path: str, validation_df: Optional[PandasDataFrame],
+              access_token: str, refresh_token: str, **kwargs):
         """Builds an H2O-3 based model."""
 
-        self.ensure()
+        self._ensure()
 
         id_ = _make_project_id()
 
@@ -190,16 +192,15 @@ class H2O3Model(Model):
         self.model = aml.leader
         self._column_types = {key: 'enum' for key in categorical_columns_}
 
-    def get(self, model_id: str):
+    @classmethod
+    def get(cls, model_id: str) -> Model:
         """Retrieves a remote model given its ID."""
 
-        self.ensure()
+        cls._ensure()
 
         aml = h2o.automl.get_automl(model_id)
         categorical_columns = _get_categorical_columns(aml.leader)
-
-        self.model = aml.leader
-        self._column_types = {key: 'enum' for key in categorical_columns}
+        return H2O3Model(aml.leader, categorical_columns)
 
     def predict(self, data: Optional[List[List]] = None, file_path: str = '',
                 test_df: Optional[PandasDataFrame] = None, **_kwargs) -> List[Tuple]:

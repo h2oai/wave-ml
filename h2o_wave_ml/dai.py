@@ -149,7 +149,7 @@ def _decode_from_deployment(data) -> List[Tuple]:
     return ret
 
 
-class _DAIModel(Model):
+class DAIModel(Model):
 
     _INSTANCE = None
     _SUPPORTED_PARAMS = [
@@ -172,7 +172,7 @@ class _DAIModel(Model):
         '_dai_config_overrides'
     ]
 
-    def __init__(self, endpoint_url: str, project_id: str):
+    def __init__(self, endpoint_url: str = "", project_id: str = ""):
         super().__init__(ModelType.DAI)
         self._endpoint_url = endpoint_url
         self._project_id = project_id
@@ -343,23 +343,22 @@ class _DAIModel(Model):
             mlops.DeployListDeploymentStatusesRequest(project_id=project_id))
         return project_id, statuses.deployment_status[0].scorer.score.url
 
-    @classmethod
-    def build(cls, train_file_path: str, train_df: Optional[PandasDataFrame], target_column: str,
+    def build(self, train_file_path: str, train_df: Optional[PandasDataFrame], target_column: str,
               model_metric: ModelMetric, task_type: Optional[TaskType], categorical_columns: Optional[List[str]],
               feature_columns: Optional[List[str]], drop_columns: Optional[List[str]],
               validation_file_path: str, validation_df: Optional[PandasDataFrame],
-              access_token: str, refresh_token: str, **kwargs) -> Model:
+              access_token: str, refresh_token: str, **kwargs):
         """Builds DAI based model."""
 
         if refresh_token:
             access_token, refresh_token = _refresh_token(refresh_token, _config.oidc_provider_url,
                                                          _config.oidc_client_id, _config.oidc_client_secret)
 
-        experiment = cls._build_model(train_file_path=train_file_path, train_df=train_df, target_column=target_column,
-                                      model_metric=model_metric, task_type=task_type,
-                                      categorical_columns=categorical_columns, feature_columns=feature_columns,
-                                      drop_columns=drop_columns, validation_file_path=validation_file_path,
-                                      validation_df=validation_df, access_token=access_token, **kwargs)
+        experiment = self._build_model(train_file_path=train_file_path, train_df=train_df, target_column=target_column,
+                                       model_metric=model_metric, task_type=task_type,
+                                       categorical_columns=categorical_columns, feature_columns=feature_columns,
+                                       drop_columns=drop_columns, validation_file_path=validation_file_path,
+                                       validation_df=validation_df, access_token=access_token, **kwargs)
 
         if refresh_token:
             access_token, refresh_token = _refresh_token(refresh_token, _config.oidc_provider_url,
@@ -368,9 +367,10 @@ class _DAIModel(Model):
             raise ValueError('no token credentials for MLOps')
 
         deployment_env = kwargs.get('_mlops_deployment_env', 'PROD')
-        project_id, endpoint_url = cls._deploy_model(experiment, access_token, deployment_env)
+        project_id, endpoint_url = self._deploy_model(experiment, access_token, deployment_env)
 
-        return _DAIModel(endpoint_url, project_id)
+        self._endpoint_url = endpoint_url
+        self._project_id = project_id
 
     @classmethod
     def get(cls, project_id: str, endpoint_url: str = '', access_token: str = '',
@@ -378,7 +378,7 @@ class _DAIModel(Model):
         """Retrieves a remote model given its ID."""
 
         if endpoint_url and not _is_mlops_imported():
-            return _DAIModel(endpoint_url, '')
+            return DAIModel(endpoint_url, '')
 
         if not _is_mlops_imported():
             raise RuntimeError('no MLOps package installed (install mlops)')
@@ -401,12 +401,12 @@ class _DAIModel(Model):
 
             deployment_id = [status.deployment_id for status in statuses if status.scorer.score.url == endpoint_url]
             if not deployment_id:
-                return _DAIModel(endpoint_url, '')
+                return DAIModel(endpoint_url, '')
             deployment_id = deployment_id[0]
 
             response = mlops_client.storage.deployment.get_deployment(
                 mlops.StorageGetDeploymentRequest(deployment_id=deployment_id))
-            return _DAIModel(endpoint_url, response.deployment.project_id)
+            return DAIModel(endpoint_url, response.deployment.project_id)
 
         try:
             statuses = mlops_client.deployer.deployment_status.list_deployment_statuses(
@@ -417,7 +417,7 @@ class _DAIModel(Model):
         # There should be a strategy to pick the right deployment instead of picking a zeroth one.
         endpoint_url = statuses.deployment_status[0].scorer.score.url
 
-        return _DAIModel(endpoint_url, project_id)
+        return DAIModel(endpoint_url, project_id)
 
     def predict(self, data: Optional[List[List]] = None, file_path: str = '',
                 test_df: Optional[PandasDataFrame] = None, **kwargs) -> List[Tuple]:
