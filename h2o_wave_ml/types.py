@@ -78,13 +78,3 @@ class Model(abc.ABC):
             [(16.6,), (17.8,), (18.9,)]
 
         """
-
-    @property
-    @abc.abstractmethod
-    def endpoint_url(self) -> Optional[str]:
-        """An endpoint url for a deployed model, if any."""
-
-    @property
-    @abc.abstractmethod
-    def project_id(self) -> Optional[str]:
-        """The MLOps project id, if any."""

@@ -115,11 +115,12 @@ class H2O3Model(Model):
                 h2o.init()
             cls._INIT = True
 
-    def build(self, train_file_path: str, train_df: Optional[PandasDataFrame], target_column: str,
-              model_metric: ModelMetric, task_type: Optional[TaskType], categorical_columns: Optional[List[str]],
-              feature_columns: Optional[List[str]], drop_columns: Optional[List[str]],
-              validation_file_path: str, validation_df: Optional[PandasDataFrame],
-              access_token: str, refresh_token: str, **kwargs):
+    def build(self, train_file_path: str = '', train_df: Optional[PandasDataFrame] = None, target_column: str = '',
+              model_metric: ModelMetric = ModelMetric.AUTO, task_type: Optional[TaskType] = None,
+              categorical_columns: Optional[List[str]] = None, feature_columns: Optional[List[str]] = None,
+              drop_columns: Optional[List[str]] = None, validation_file_path: str = '',
+              validation_df: Optional[PandasDataFrame] = None, access_token: str = '', refresh_token: str = '',
+              **kwargs):
         """Builds an H2O-3 based model."""
 
         self._ensure()
@@ -223,11 +224,3 @@ class H2O3Model(Model):
         output_frame = self.model.predict(input_frame)
         data = output_frame.as_data_frame(use_pandas=False, header=False)
         return _decode_from_frame(data)
-
-    @property
-    def endpoint_url(self) -> Optional[str]:
-        return None
-
-    @property
-    def project_id(self) -> Optional[str]:
-        return None

@@ -178,6 +178,10 @@ class DAIModel(Model):
         self._project_id = project_id
 
     @classmethod
+    def get_dai_client(cls, access_token: str = '', **kwargs):
+        return cls._get_instance(access_token, **kwargs)
+
+    @classmethod
     def _get_instance(cls, access_token: str = '', **kwargs):
 
         instance_name = kwargs.get('_steam_dai_instance_name', _config.steam_instance_name)
@@ -212,9 +216,10 @@ class DAIModel(Model):
 
     @classmethod
     def _build_model(cls, train_file_path: str, train_df: Optional[PandasDataFrame], target_column: str,
-                     model_metric: ModelMetric, task_type: Optional[TaskType], categorical_columns: Optional[List[str]],
-                     feature_columns: Optional[List[str]], drop_columns: Optional[List[str]],
-                     validation_file_path: str, validation_df: Optional[PandasDataFrame], access_token: str, **kwargs):
+                     model_metric: ModelMetric, task_type: Optional[TaskType],
+                     categorical_columns: Optional[List[str]], feature_columns: Optional[List[str]],
+                     drop_columns: Optional[List[str]], validation_file_path: str,
+                     validation_df: Optional[PandasDataFrame], access_token: str, **kwargs):
 
         dai = cls._get_instance(access_token, **kwargs)
 
@@ -343,11 +348,12 @@ class DAIModel(Model):
             mlops.DeployListDeploymentStatusesRequest(project_id=project_id))
         return project_id, statuses.deployment_status[0].scorer.score.url
 
-    def build(self, train_file_path: str, train_df: Optional[PandasDataFrame], target_column: str,
-              model_metric: ModelMetric, task_type: Optional[TaskType], categorical_columns: Optional[List[str]],
-              feature_columns: Optional[List[str]], drop_columns: Optional[List[str]],
-              validation_file_path: str, validation_df: Optional[PandasDataFrame],
-              access_token: str, refresh_token: str, **kwargs):
+    def build(self, train_file_path: str = '', train_df: Optional[PandasDataFrame] = None, target_column: str = '',
+              model_metric: ModelMetric = ModelMetric.AUTO, task_type: Optional[TaskType] = None,
+              categorical_columns: Optional[List[str]] = None, feature_columns: Optional[List[str]] = None,
+              drop_columns: Optional[List[str]] = None, validation_file_path: str = '',
+              validation_df: Optional[PandasDataFrame] = None, access_token: str = '', refresh_token: str = '',
+              **kwargs):
         """Builds DAI based model."""
 
         if refresh_token:
@@ -438,10 +444,12 @@ class DAIModel(Model):
 
     @property
     def endpoint_url(self) -> Optional[str]:
+        """An endpoint url for a deployed model, if any."""
         return self._endpoint_url
 
     @property
     def project_id(self) -> Optional[str]:
+        """The MLOps project id, if any."""
         if self._project_id:
             return self._project_id
         return None
