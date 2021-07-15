@@ -172,7 +172,7 @@ class DAIModel(Model):
         '_dai_config_overrides'
     ]
 
-    def __init__(self, endpoint_url: str = "", project_id: str = ""):
+    def __init__(self, endpoint_url: str = '', project_id: str = ''):
         super().__init__(ModelType.DAI)
         self._endpoint_url = endpoint_url
         self._project_id = project_id
@@ -427,6 +427,9 @@ class DAIModel(Model):
 
     def predict(self, data: Optional[List[List]] = None, file_path: str = '',
                 test_df: Optional[PandasDataFrame] = None, **kwargs) -> List[Tuple]:
+
+        if not self._endpoint_url:
+            raise RuntimeError('no model available')
 
         if data is not None:
             payload = _encode_from_data(data)
