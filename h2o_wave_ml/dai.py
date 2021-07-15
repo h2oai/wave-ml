@@ -29,7 +29,7 @@ import requests
 
 from .config import _config
 from .types import Model, ModelType, ModelMetric, TaskType, PandasDataFrame
-from .utils import _make_id, _remove_prefix, _is_mlops_imported, _connect_to_steam, _refresh_token
+from .utils import _make_id, _remove_prefix, _is_mlops_imported, _connect_to_steam, _refresh_token, save_autodoc
 
 
 _INT_TO_CAT_THRESHOLD = 50
@@ -456,3 +456,10 @@ class DAIModel(Model):
         if self._project_id:
             return self._project_id
         return None
+
+    def save_autodoc(self, output_dir_path: str, access_token: str = '', refresh_token: str = '') -> str:
+
+        if not self._project_id:
+            raise RuntimeError('no model available')
+
+        return save_autodoc(self._project_id, output_dir_path, access_token, refresh_token)
