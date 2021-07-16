@@ -29,7 +29,7 @@ import requests
 
 from .config import _config
 from .types import Model, ModelType, ModelMetric, TaskType, PandasDataFrame
-from .utils import _make_id, _remove_prefix, _is_mlops_imported, _connect_to_steam, _refresh_token
+from .utils import _make_id, _remove_prefix, _is_mlops_imported, _connect_to_steam, _TokenProvider
 
 
 _INT_TO_CAT_THRESHOLD = 50
@@ -351,9 +351,11 @@ class _DAIModel(Model):
               access_token: str, refresh_token: str, **kwargs) -> Model:
         """Builds DAI based model."""
 
+        get_token = lambda: ''  # noqa: E731
         if refresh_token:
-            access_token, refresh_token = _refresh_token(refresh_token, _config.oidc_provider_url,
-                                                         _config.oidc_client_id, _config.oidc_client_secret)
+            get_token = _TokenProvider(refresh_token, _config.oidc_provider_url, _config.oidc_client_id,
+                                       _config.oidc_client_secret)
+            access_token = get_token()
 
         experiment = cls._build_model(train_file_path=train_file_path, train_df=train_df, target_column=target_column,
                                       model_metric=model_metric, task_type=task_type,
@@ -362,8 +364,7 @@ class _DAIModel(Model):
                                       validation_df=validation_df, access_token=access_token, **kwargs)
 
         if refresh_token:
-            access_token, refresh_token = _refresh_token(refresh_token, _config.oidc_provider_url,
-                                                         _config.oidc_client_id, _config.oidc_client_secret)
+            access_token = get_token()
         elif not access_token and not refresh_token:
             raise ValueError('no token credentials for MLOps')
 
@@ -390,8 +391,9 @@ class _DAIModel(Model):
             raise ValueError('no token credentials for MLOps')
 
         if refresh_token:
-            access_token, _ = _refresh_token(refresh_token, _config.oidc_provider_url,
-                                             _config.oidc_client_id, _config.oidc_client_secret)
+            get_token = _TokenProvider(refresh_token, _config.oidc_provider_url, _config.oidc_client_id,
+                                       _config.oidc_client_secret)
+            access_token = get_token()
 
         mlops_client = mlops.Client(gateway_url=_config.mlops_gateway,
                                     token_provider=lambda: access_token)
