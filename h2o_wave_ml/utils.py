@@ -15,7 +15,7 @@
 import datetime
 from pathlib import Path
 import sys
-from typing import Tuple, Dict, List, Optional
+from typing import Dict, List
 import uuid
 from urllib.parse import urljoin
 
