@@ -103,8 +103,7 @@ class _TokenProvider:
             return True
 
         now = datetime.datetime.now(datetime.timezone.utc)
-        return self._token_expiry is None or (
-                self._token_expiry <= (now + self._DEFAULT_EXPIRY_THRESHOLD_BAND))
+        return self._token_expiry is None or (self._token_expiry <= (now + self._DEFAULT_EXPIRY_THRESHOLD_BAND))
 
     def _refresh(self):
         r = requests.get(self._configuration_url)
