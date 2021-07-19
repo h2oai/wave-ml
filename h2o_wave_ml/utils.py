@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import datetime
 from pathlib import Path
 import sys
-from typing import Tuple, Dict, List
+from typing import Dict, List
 import uuid
 from urllib.parse import urljoin
 
@@ -67,25 +68,63 @@ def _connect_to_steam(access_token: str = ''):
         raise RuntimeError('no Steam credentials')
 
 
-def _refresh_token(refresh_token: str, provider_url: str, client_id: str, client_secret: str) -> Tuple[str, str]:
+class _TokenProvider:
 
-    provider_url = f'{provider_url}/' if not provider_url.endswith('/') else provider_url
-    r = requests.get(urljoin(provider_url, '.well-known/openid-configuration'))
-    r.raise_for_status()
-    conf_data = r.json()
+    _DEFAULT_EXPIRY_THRESHOLD_BAND = datetime.timedelta(seconds=5)
 
-    token_endpoint_url = conf_data['token_endpoint']
+    def __init__(self, refresh_token: str, provider_url: str, client_id: str, client_secret: str):
 
-    payload = dict(
-        client_id=client_id,
-        client_secret=client_secret,
-        grant_type='refresh_token',
-        refresh_token=refresh_token,
-    )
-    r = requests.post(token_endpoint_url, data=payload)
-    r.raise_for_status()
-    token_data = r.json()
-    return token_data['access_token'], token_data['refresh_token']
+        self._refresh_token = refresh_token
+
+        self._provider_url = f'{provider_url}/' if not provider_url.endswith('/') else provider_url
+        self._configuration_url = urljoin(self._provider_url, '.well-known/openid-configuration')
+
+        self._client_id = client_id
+        self._client_secret = client_secret
+
+        self._access_token = None
+        self._token_expiry = None
+
+    def __call__(self) -> str:
+        """Gets a valid access token.
+
+        Returns:
+            An access token.
+
+        """
+
+        if self._refresh_required():
+            self._refresh()
+
+        return self._access_token
+
+    def _refresh_required(self) -> bool:
+        if self._access_token is None:
+            return True
+
+        now = datetime.datetime.now(datetime.timezone.utc)
+        return self._token_expiry is None or (self._token_expiry <= (now + self._DEFAULT_EXPIRY_THRESHOLD_BAND))
+
+    def _refresh(self):
+        r = requests.get(self._configuration_url)
+        r.raise_for_status()
+        conf_data = r.json()
+
+        token_endpoint_url = conf_data['token_endpoint']
+
+        payload = dict(
+            client_id=self._client_id,
+            client_secret=self._client_secret,
+            grant_type='refresh_token',
+            refresh_token=self._refresh_token,
+        )
+        r = requests.post(token_endpoint_url, data=payload)
+        r.raise_for_status()
+        token_data = r.json()
+
+        self._access_token = token_data['access_token']
+        self._refresh_token = token_data['refresh_token']
+        self._token_expiry = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=token_data['expires_in'])
 
 
 def list_dai_instances(access_token: str = '', refresh_token: str = '') -> List[Dict]:

@@ -78,7 +78,7 @@ async def train(q: Q):
 @on()
 async def load(q: Q):
     if q.args.project_id.startswith('http'):
-        model = get_model(endpoint_url=q.args.project_id)
+        model = get_model(endpoint_url=q.args.project_id, access_token=q.auth.access_token)
     else:
         model = get_model(model_id=q.args.project_id, access_token=q.auth.access_token)
 
