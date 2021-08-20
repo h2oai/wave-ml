@@ -4,6 +4,7 @@ from utility import default_value, choices, features
 
 model = build_model(train_file_path='__DATASET__', target_column='__TARGET__')
 
+
 @app('/')
 async def serve(q: Q):
 
@@ -27,8 +28,8 @@ __PREDICTION__
         q.page['header'] = ui.header_card(
             box='body',
             title='__TITLE__',
-            subtitle='Cheers!',  # Delete?
-            icon='Wines',  # Delete?
+            subtitle='Cheers!',
+            icon='DiagnosticDataBarTooltip',
             icon_color='$red',
         )
 __OUTPUT_CARD__
