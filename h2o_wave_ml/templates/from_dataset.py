@@ -12,7 +12,7 @@ async def serve(q: Q):
 __DEFAULT_VALUES__
 
     # Prepare input data and do the predictions
-__PREDICTION__
+__INPUTS__
     score = model.predict(input_data)
     score = score[0][0]
 

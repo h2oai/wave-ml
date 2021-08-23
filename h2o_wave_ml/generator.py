@@ -2,9 +2,21 @@ import argparse
 import fileinput
 from pathlib import Path
 import shutil
-from typing import List, Dict, Any, Callable, Tuple
+from typing import List, Dict, Any, Callable, Tuple, NamedTuple
 
 import h2o
+
+
+class ColumnMeta(NamedTuple):
+    """A column description."""
+    id: str
+    name: str
+    type: str
+    rnd_value: str
+    values: List[str] = []
+    nvalues: int = 0
+    min: float = 0
+    max: float = 0
 
 
 class _Buffer:
@@ -58,31 +70,31 @@ def _make_new_id() -> Callable[[str], str]:
     return new_id
 
 
-def generate_utility_file(output_dir: str, target: str, column_info: List[Dict[str, Any]]):
+def generate_utility_file(output_dir: str, target: str, columns: List[ColumnMeta]):
     b = _Buffer()
     file_path = Path(output_dir).joinpath('utility.py')
     with open(file_path, 'w') as f:
         b.p('from h2o_wave import ui')
         b.p()
 
-        features = [c['name'] for c in column_info if c['name'] != target]
+        features = [c.name for c in columns if c.name != target]
         b.p(f'features = {features}')
         b.p()
 
         b.p('choices = {')
-        for c in column_info:
-            if c['type'] == 'enum':
-                key = c['name']
-                values = c['values']
+        for c in columns:
+            if c.type == 'enum':
+                key = c.name
+                values = c.values
                 b.p(f'\'{key}\': [ui.choice(str(item)) for item in {values}],', tab=1)
         b.p('}')
         b.p()
 
         b.p('default_value = {')
-        for c in column_info:
-            key = c['name']
-            value = c['first_value']
-            value = f'\'{value}\'' if c['type'] in ('enum', 'string') else value
+        for c in columns:
+            key = c.name
+            value = c.rnd_value
+            value = f'\'{value}\'' if c.type in ('enum', 'string') else value
             b.p(f'\'{key}\': {value},', tab=1)
         b.p('}')
         b.p()
@@ -90,57 +102,56 @@ def generate_utility_file(output_dir: str, target: str, column_info: List[Dict[s
         f.write(str(b))
 
 
-def _prepare_defaults(target: str, column_info: List[Dict[str, Any]]) -> str:
+def _prepare_defaults(target: str, columns: List[ColumnMeta]) -> str:
     b = _Buffer()
-    for c in column_info:
-        if c['name'] == target:
+    for c in columns:
+        if c.name == target:
             continue
-        id_ = c['id']
-        if c['type'] in ('int', 'real'):
-            b.p(f'{id_} = q.args.{id_} if q.args.{id_} else default_value[\'{id_}\']', tab=1)
+        if c.type in ('int', 'real'):
+            b.p(f'{c.id} = q.args.{c.id} if q.args.{c.id} else default_value[\'{c.id}\']', tab=1)
         else:
-            b.p(f'{id_} = q.args.{id_} or default_value[\'{id_}\']', tab=1)
+            b.p(f'{c.id} = q.args.{c.id} or default_value[\'{c.id}\']', tab=1)
     return str(b)
 
 
-def _prepare_prediction(target: str, column_info: List[Dict[str, Any]]) -> str:
-    names = [c['name'] for c in column_info if c['name'] != target]
+def _prepare_inputs(target: str, columns: List[ColumnMeta]) -> str:
+    names = [c.name for c in columns if c.name != target]
     names = ', '.join(names)
     return f'    input_data = [features, [{names}]]\n'
 
 
-def _prepade_form_items(target: str, column_info: List[Dict[str, Any]]) -> str:
-    # String - textbox w/ multiline for longer text based on threshold
-    # Int - slider (10 values) / spinbox (rest)
-    # Float - slider (more values but watch step) / spinbox
-    # Enum - choicegroup (10 values) / dropdown
-    # Time - datepicker
+def _prepare_form_items(target: str, columns: List[ColumnMeta]) -> str:
     b = _Buffer()
-    for c in column_info:
-        if c['name'] == target:
+    for c in columns:
+        if c.name == target:
             continue
-        id_ = c['id']
-        name = c['name']
-        if c['type'] == 'enum':
-            b.p(f'ui.dropdown(name=\'{id_}\', label=\'{name}\', value={id_}, trigger=True, choices=choices[\'{id_}\']),', tab=3)
-        elif c['type'] == 'int':
-            max_ = c['max']
-            min_ = c['min']
-            b.p(f'ui.slider(name=\'{id_}\', label=\'{name}\', min={min_}, max={max_}, step=1, value=float({id_}), trigger=True),', tab=3)
+        if c.type == 'enum':
+            # See `choice_group` for another component.
+            b.p(f'ui.dropdown(name=\'{c.id}\', label=\'{c.name}\', value={c.id}, trigger=True, choices=choices[\'{c.id}\']),', tab=3)
+        elif c.type == 'int':
+            # See `spinbox` (no trigger option).
+            b.p(f'ui.slider(name=\'{c.id}\', label=\'{c.name}\', min={c.min}, max={c.max}, step=1, value=int({c.id}), trigger=True),', tab=3)
+        elif c.type == 'real':
+            # See `spinbox` (no trigger option).
+            b.p(f'ui.slider(name=\'{c.id}\', label=\'{c.name}\', min={c.min}, max={c.max}, step=0.2, value=int({c.id}), trigger=True),', tab=3)
+        elif c.type == 'string':
+            b.p(f'ui.textbox(name=\'{c.id}\', label=\'{c.name}\', value=str({c.id}), trigger=True)')
+        elif c.type == 'time':
+            b.p(f'ui.datepicker(name=\'{c.id}\', label=\'{c.name}\', value=str({c.id}, trigger=True)')
         else:
             print('unknown type')
     return str(b)
 
 
-def _prepare_output(target: str, column_info: List[Dict[str, Any]]) -> Tuple[str, str]:
+def _prepare_output(target: str, columns: List[ColumnMeta]) -> Tuple[str, str]:
     # String, Enum - text, markdown, Info / Wide
     # Int, Float - gauge,
     # Time - convert to string (see clock component)
     b = _Buffer()
     u = _Buffer()
-    for c in column_info:
-        if c['name'] == target:
-            if c['type'] == 'int':
+    for c in columns:
+        if c.name == target:
+            if c.type == 'int':
                 b.p('q.page[\'result\'] = ui.tall_gauge_stat_card(', tab=2)
                 b.p('box=ui.box(\'body\', height=\'180px\'),', tab=3)
                 b.p('value=str(score),', tab=3)
@@ -149,6 +160,7 @@ def _prepare_output(target: str, column_info: List[Dict[str, Any]]) -> Tuple[str
                 b.p('progress=0,', tab=3)
                 b.p(')', tab=2)
                 u.p('q.page[\'result\'].value = str(score)', tab=2)
+                # update progress as well
             else:
                 print('unknown type')
             break
@@ -156,7 +168,7 @@ def _prepare_output(target: str, column_info: List[Dict[str, Any]]) -> Tuple[str
 
 
 def prepare_templates(template_dir: str, output_dir: str, dataset_src_path: str, target: str,
-                      title: str, column_info: List[Dict[str, Any]]):
+                      title: str, columns: List[ColumnMeta]):
 
     makefile_src_path = Path(template_dir).joinpath('Makefile')
     makefile_dst_path = Path(output_dir).joinpath('Makefile')
@@ -168,16 +180,16 @@ def prepare_templates(template_dir: str, output_dir: str, dataset_src_path: str,
     shutil.copy2(index_src_path, index_dst_path)
     shutil.copy2(dataset_src_path, output_dir)
 
-    defaults = _prepare_defaults(target, column_info)
-    prediction = _prepare_prediction(target, column_info)  # Choose better name.
-    form_items = _prepade_form_items(target, column_info)
-    output_card, score_update = _prepare_output(target, column_info)  # Choose better name.
+    defaults = _prepare_defaults(target, columns)
+    inputs = _prepare_inputs(target, columns)
+    form_items = _prepare_form_items(target, columns)
+    output_card, score_update = _prepare_output(target, columns)  # Choose better name.
 
     for line in fileinput.input([index_dst_path], inplace=True):
         print(line.replace('__DATASET__', str(dataset_filename))
                   .replace('__TARGET__', target)
                   .replace('__DEFAULT_VALUES__\n', defaults)
-                  .replace('__PREDICTION__\n', prediction)  # Choose better name.
+                  .replace('__INPUTS__\n', inputs)
                   .replace('__TITLE__', title)
                   .replace('__OUTPUT_CARD__\n', output_card)
                   .replace('__FORM_ITEMS__\n', form_items)
@@ -190,34 +202,34 @@ def _get_type_specifics(frame: h2o.H2OFrame, type_: str) -> Dict[str, Any]:
         return {
             'nvalues': f.unique().nrows,
             'values': f.categories(),
-            'first_value': f[0, 0],
+            'rnd_value': f[0, 0],
         }
     elif type_ in ('int', 'real'):
         return {
             'nvalues': f.unique().nrows,
             'max': f.max(),
             'min': f.min(),
-            'first_value': f[0, 0],
+            'rnd_value': f[0, 0],
         }
     elif type_ == 'string':
         return {
-            'first_value': f[0, 0],
+            'rnd_value': f[0, 0],
         }
     elif type_ == 'time':
         return {
             'max': f.max(),
             'min': f.min(),
-            'first_value': f[0, 0],
+            'rnd_value': f[0, 0],
         }
 
     print(f'new type value {type_}')
     return {}
 
 
-def _get_columns_info(frame: h2o.H2OFrame) -> List[Dict[str, Any]]:
+def _get_columns_info(frame: h2o.H2OFrame) -> List[ColumnMeta]:
     make_id = _make_new_id()
     return [
-        {'id': make_id(name), 'name': name, 'type': type_, **_get_type_specifics(frame[name], type_)}
+        ColumnMeta(**{'id': make_id(name), 'name': name, 'type': type_, **_get_type_specifics(frame[name], type_)})
         for name, type_ in frame.types.items()
     ]
 
@@ -241,8 +253,11 @@ if __name__ == '__main__':
 
     cols = _get_columns_info(train_frame)
     if args.drop is not None:
-        cols = [col for col in cols if col["name"] not in args.drop]
+        cols = [c for c in cols if c.name not in args.drop]
 
-    prepare_templates(args.template_dir, args.output_dir, args.from_dataset, args.target_column,
-                      args.title, cols)
-    generate_utility_file(args.output_dir, args.target_column, cols)
+    if not Path(args.output_dir).exists():
+        print('output directory does not exist')
+    else:
+        prepare_templates(args.template_dir, args.output_dir, args.from_dataset, args.target_column,
+                          args.title, cols)
+        generate_utility_file(args.output_dir, args.target_column, cols)
