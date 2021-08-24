@@ -2,6 +2,7 @@ import argparse
 import fileinput
 from pathlib import Path
 import shutil
+import sys
 from typing import List, Dict, Any, Callable, Tuple, NamedTuple
 
 import h2o
@@ -129,10 +130,10 @@ def _prepare_form_items(target: str, columns: List[ColumnMeta]) -> str:
             # See `choice_group` for another component.
             b.p(f'ui.dropdown(name=\'{c.id}\', label=\'{c.name}\', value={c.id}, trigger=True, choices=choices[\'{c.id}\']),', tab=3)
         elif c.type == 'int':
-            # See `spinbox` (no trigger option).
+            # See `spinbox` when trigger option is ready.
             b.p(f'ui.slider(name=\'{c.id}\', label=\'{c.name}\', min={c.min}, max={c.max}, step=1, value=int({c.id}), trigger=True),', tab=3)
         elif c.type == 'real':
-            # See `spinbox` (no trigger option).
+            # See `spinbox` when trigger option is ready.
             b.p(f'ui.slider(name=\'{c.id}\', label=\'{c.name}\', min={c.min}, max={c.max}, step=0.2, value=int({c.id}), trigger=True),', tab=3)
         elif c.type == 'string':
             b.p(f'ui.textbox(name=\'{c.id}\', label=\'{c.name}\', value=str({c.id}), trigger=True)')
@@ -145,22 +146,25 @@ def _prepare_form_items(target: str, columns: List[ColumnMeta]) -> str:
 
 def _prepare_output(target: str, columns: List[ColumnMeta]) -> Tuple[str, str]:
     # String, Enum - text, markdown, Info / Wide
-    # Int, Float - gauge,
-    # Time - convert to string (see clock component)
     b = _Buffer()
     u = _Buffer()
     for c in columns:
         if c.name == target:
-            if c.type == 'int':
+            if c.type in ('int', 'real'):
                 b.p('q.page[\'result\'] = ui.tall_gauge_stat_card(', tab=2)
                 b.p('box=ui.box(\'body\', height=\'180px\'),', tab=3)
                 b.p('value=str(score),', tab=3)
-                b.p('aux_value=\'{target}\',', tab=3)
+                b.p(f'aux_value=\'{target}\',', tab=3)
                 b.p('title=\'Result\',', tab=3)
-                b.p('progress=0,', tab=3)
+                b.p(f'progress=float(score)/{c.max},', tab=3)
                 b.p(')', tab=2)
                 u.p('q.page[\'result\'].value = str(score)', tab=2)
-                # update progress as well
+                u.p(f'q.page[\'result\'].progress = float(score)/{c.max}', tab=2)
+            elif c.type in ('string', 'enum'):
+                b.p('page[\'result\'] = ui.form_card(', tab=2)
+                b.p('box=ui.box(\'body\', height=\'180px\'),', tab=3)
+                b.p('items=[ui.text_l(score)],', tab=3)
+                b.p(')', tab=2)
             else:
                 print('unknown type')
             break
@@ -247,6 +251,11 @@ if __name__ == '__main__':
 
     if args.from_dataset is None:
         print('no dataset to inspect')
+        sys.exit(1)
+
+    if not Path(args.output_dir).exists():
+        print('output directory does not exist')
+        sys.exit(1)
 
     h2o.init(url=args.h2o3_url)
     train_frame = h2o.import_file(args.from_dataset)
@@ -255,9 +264,6 @@ if __name__ == '__main__':
     if args.drop is not None:
         cols = [c for c in cols if c.name not in args.drop]
 
-    if not Path(args.output_dir).exists():
-        print('output directory does not exist')
-    else:
-        prepare_templates(args.template_dir, args.output_dir, args.from_dataset, args.target_column,
-                          args.title, cols)
-        generate_utility_file(args.output_dir, args.target_column, cols)
+    prepare_templates(args.template_dir, args.output_dir, args.from_dataset, args.target_column,
+                      args.title, cols)
+    generate_utility_file(args.output_dir, args.target_column, cols)
