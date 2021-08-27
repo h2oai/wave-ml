@@ -1,10 +1,10 @@
-import argparse
 import fileinput
 from pathlib import Path
 import shutil
 import sys
-from typing import List, Dict, Any, Callable, Tuple, NamedTuple
+from typing import List, Dict, Any, Callable, Tuple, NamedTuple, Optional
 
+import click
 import h2o
 
 
@@ -44,7 +44,7 @@ def _make_new_id() -> Callable[[str], str]:
     Returns:
         Function responsible for a name generation.
     Examples:
-        >>> new_id = make_new_id()
+        >>> new_id = _make_new_id()
         >>> new_id('My name')
         'my_name'
         >>> new_id('My other name')
@@ -238,32 +238,34 @@ def _get_columns_info(frame: h2o.H2OFrame) -> List[ColumnMeta]:
     ]
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Generate a Wave app based on a dataset', epilog='Have fun!')
-    parser.add_argument('target_column', type=str, help='a column to be predicted')
-    parser.add_argument('--h2o3-url', type=str, help='an H2O-3 instance to use (if any)')
-    parser.add_argument('--from-dataset', type=str, help='a dataset to examine')
-    parser.add_argument('--output-dir', type=str, help='a directory to save the generated project to', default='./')
-    parser.add_argument('--template-dir', type=str, help='a directory containing the templates for generator', default='./templates')
-    parser.add_argument('--drop', type=str, metavar='column', nargs='*', help='a list of column names to skip')
-    parser.add_argument('--title', type=str, help='a title for the application', default='My app')
-    args = parser.parse_args()
+@click.group()
+def main():
+    pass
 
-    if args.from_dataset is None:
+
+@main.command()
+@click.argument('target_column')
+@click.option('--h2o3-url', help='an H2O-3 instance to use (if any)')
+@click.option('--from-dataset', help='a dataset to examine')
+@click.option('--output-dir', default='./', type=click.Path(exists=True), help='a directory to save the generated project to')
+@click.option('--template-dir', default='./templates', type=click.Path(exists=True), help='a directory containing the templates for generator')
+@click.option('--drop', '-d', multiple=True, help='a list of column names to skip')
+@click.option('--title', default='My app', help='a caption for an app')
+def generate(target_column: str, h2o3_url: Optional[str], from_dataset: Optional[str], output_dir: Optional[click.Path],
+             template_dir: Optional[click.Path], drop: Tuple[str], title: str):
+    """Generate a Wave app based on a dataset."""
+
+    if from_dataset is None:
         print('no dataset to inspect')
         sys.exit(1)
 
-    if not Path(args.output_dir).exists():
-        print('output directory does not exist')
-        sys.exit(1)
-
-    h2o.init(url=args.h2o3_url)
-    train_frame = h2o.import_file(args.from_dataset)
+    h2o.init(url=h2o3_url)
+    train_frame = h2o.import_file(from_dataset)
 
     cols = _get_columns_info(train_frame)
-    if args.drop is not None:
-        cols = [c for c in cols if c.name not in args.drop]
+    if drop:
+        cols = [c for c in cols if c.name not in drop]
 
-    prepare_templates(args.template_dir, args.output_dir, args.from_dataset, args.target_column,
-                      args.title, cols)
-    generate_utility_file(args.output_dir, args.target_column, cols)
+    prepare_templates(click.format_filename(template_dir), click.format_filename(output_dir), from_dataset,
+                      target_column, title, cols)
+    generate_utility_file(click.format_filename(output_dir), target_column, cols)
