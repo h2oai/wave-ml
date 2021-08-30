@@ -1,4 +1,6 @@
 import fileinput
+import inspect
+import os
 from pathlib import Path
 import shutil
 import sys
@@ -248,24 +250,29 @@ def main():
 @click.option('--h2o3-url', help='H2O-3 instance to use (if any).')
 @click.option('--dataset', help='Dataset to examine.')
 @click.option('--output-dir', default='./', type=click.Path(exists=True), help='Directory to save generated project to.')
-@click.option('--template-dir', default='./templates', type=click.Path(exists=True), help='Directory containing templates for generator.')
+@click.option('--template-dir', help='Directory containing templates for generator.')
 @click.option('--drop', '-d', multiple=True, help='Column name to skip.')
 @click.option('--title', default='My app', help='Title for app.')
-def make(target_column: str, h2o3_url: Optional[str], from_dataset: Optional[str], output_dir: Optional[click.Path],
-         template_dir: Optional[click.Path], drop: Tuple[str], title: str):
+def make(target_column: str, h2o3_url: Optional[str], dataset: Optional[str], output_dir: Optional[click.Path],
+         template_dir: Optional[str], drop: Tuple[str], title: str):
     """Generate a Wave app based on a dataset."""
 
-    if from_dataset is None:
+    if dataset is None:
         print('no dataset to inspect')
         sys.exit(1)
 
+    if template_dir is None:
+        module_file_path = inspect.getfile(sys.modules[__name__])
+        module_dir = os.path.dirname(module_file_path)
+        template_dir = Path(module_dir).joinpath('templates')
+
     h2o.init(url=h2o3_url)
-    train_frame = h2o.import_file(from_dataset)
+    train_frame = h2o.import_file(dataset)
 
     cols = _get_columns_info(train_frame)
     if drop:
         cols = [c for c in cols if c.name not in drop]
 
-    prepare_templates(click.format_filename(template_dir), click.format_filename(output_dir), from_dataset,
+    prepare_templates(template_dir, click.format_filename(output_dir), dataset,
                       target_column, title, cols)
     generate_utility_file(click.format_filename(output_dir), target_column, cols)
