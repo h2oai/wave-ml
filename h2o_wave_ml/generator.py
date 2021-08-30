@@ -246,13 +246,13 @@ def main():
 @main.command()
 @click.argument('target_column')
 @click.option('--h2o3-url', help='H2O-3 instance to use (if any).')
-@click.option('--from-dataset', help='Dataset to examine.')
+@click.option('--dataset', help='Dataset to examine.')
 @click.option('--output-dir', default='./', type=click.Path(exists=True), help='Directory to save generated project to.')
 @click.option('--template-dir', default='./templates', type=click.Path(exists=True), help='Directory containing templates for generator.')
 @click.option('--drop', '-d', multiple=True, help='Column name to skip.')
 @click.option('--title', default='My app', help='Title for app.')
-def generate(target_column: str, h2o3_url: Optional[str], from_dataset: Optional[str], output_dir: Optional[click.Path],
-             template_dir: Optional[click.Path], drop: Tuple[str], title: str):
+def make(target_column: str, h2o3_url: Optional[str], from_dataset: Optional[str], output_dir: Optional[click.Path],
+         template_dir: Optional[click.Path], drop: Tuple[str], title: str):
     """Generate a Wave app based on a dataset."""
 
     if from_dataset is None:
