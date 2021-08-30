@@ -266,6 +266,9 @@ def make(target_column: str, h2o3_url: Optional[str], dataset: Optional[str], ou
         module_dir = os.path.dirname(module_file_path)
         template_dir = Path(module_dir).joinpath('templates')
 
+    if not Path(template_dir).exists():
+        raise ValueError('the template directory does not exist')
+
     h2o.init(url=h2o3_url)
     train_frame = h2o.import_file(dataset)
 
