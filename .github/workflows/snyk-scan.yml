@@ -1,0 +1,47 @@
+name: Snyk Security Vulnerability Scan
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+  push:
+    tags:
+      - 'v.[0-9]+.[0-100]+.[0-100]+'
+    branches:
+      - 'main'
+
+jobs:
+  snyk_scan_test:
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@main
+
+      - name: Snyk scan for Python dependencies
+        uses: snyk/actions/python-3.7@main
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --command=python3 --file=requirements.txt --skip-unresolved -d --fail-on=all
+  
+  snyk_scan_monitor:
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract github branch/tag name
+        shell: bash
+        run: echo "##[set-output name=ref;]$(echo ${GITHUB_REF##*/})"
+        id: extract_ref
+      
+      - uses: actions/checkout@main
+
+      - name: Snyk scan for Python dependancies
+        uses: snyk/actions/python-3.7@main
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: monitor
+          args: --command=python3 --skip-unresolved --org=h2oai --remote-repo-url=WAVE-ML --file=requirements.txt --project-name=${{steps.extract_ref.outputs.ref}}/wave-ml -d --fail-on=all
+
+
+
+ 
