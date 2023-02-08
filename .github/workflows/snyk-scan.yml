@@ -8,6 +8,7 @@ on:
       - 'v.[0-9]+.[0-100]+.[0-100]+'
     branches:
       - 'main'
+      - 'devops/snyk-integration'
 
 jobs:
   snyk_scan_test:
