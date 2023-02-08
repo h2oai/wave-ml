@@ -42,4 +42,3 @@ jobs:
         with:
           command: monitor
           args: --command=python3 --skip-unresolved --org=h2oai --remote-repo-url=WAVE-ML --file=requirements.txt --project-name=${{steps.extract_ref.outputs.ref}}/wave-ml -d --fail-on=all
-          
