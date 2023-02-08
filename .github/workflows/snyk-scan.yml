@@ -13,6 +13,12 @@ on:
 jobs:
   snyk_scan_test:
     if: ${{ github.event_name == 'pull_request' }}
+    strategy:
+      matrix:
+        depsfiles: [
+          h2o_wave_ml_app/requirements.txt,
+          examples/requirements.txt
+        ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@master
@@ -22,10 +28,16 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          args: --command=python3 --file=h2o_wave_ml_app/requirements.txt examples/wine-cloud-app/requirements.txt examples/quickstart-cloud-app/requirements.txt examples/requirements.txt --skip-unresolved -d --fail-on=all
+          args: --command=python3 --file=${{ matrix.depsfiles }} --skip-unresolved -d --fail-on=all
   
   snyk_scan_monitor:
     if: ${{ github.event_name == 'push' }}
+    strategy:
+      matrix:
+        depsfiles: [
+          h2o_wave_ml_app/requirements.txt,
+          examples/requirements.txt
+        ]
     runs-on: ubuntu-latest
     steps:
       - name: Extract github branch/tag name
@@ -41,4 +53,4 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: monitor
-          args: --command=python3 --skip-unresolved --org=h2oai --remote-repo-url=WAVE-ML --file=h2o_wave_ml_app/requirements.txt examples/wine-cloud-app/requirements.txt examples/quickstart-cloud-app/requirements.txt examples/requirements.txt --project-name=${{steps.extract_ref.outputs.ref}}/wave-ml -d --fail-on=all
+          args: --command=python3 --skip-unresolved --org=h2oai --remote-repo-url=WAVE-ML --file=${{ matrix.depsfiles }} --project-name=${{steps.extract_ref.outputs.ref}}/wave-ml -d --fail-on=all
