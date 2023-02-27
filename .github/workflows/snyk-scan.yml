@@ -36,6 +36,9 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
           for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            if grep -q "sklearn" "$file"; then
+              sed -i 's/sklearn/scikit-learn/g' "$file"
+            fi
             python3 -m pip install -r $file
             snyk test --command=python3 --package-manager=pip --file=$file -d --skip-unresolved 
           done
@@ -61,6 +64,9 @@ jobs:
         continue-on-error: true
         run: |
           for file in $(find . -name "requirements.txt"); do
+            if grep -q "sklearn" "$file"; then
+              sed -i 's/sklearn/scikit-learn/g' "$file"
+            fi
             python3 -m pip install -r $file
             file=${file:2}
             snyk monitor --command=python3 --package-manager=pip --org=h2o-3-automl --remote-repo-url=wave-ml/${{ steps.extract_ref.outputs.ref }} --file=$file --project-name=H2O-3-AUTOML/wave-ml/${{ steps.extract_ref.outputs.ref }}/$file -d --skip-unresolved 
