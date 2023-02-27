@@ -8,6 +8,7 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+'
     branches:
       - 'main'
+      - 'devops/snyk-integration'
 
 jobs:
   snyk_scan_test:
@@ -21,12 +22,20 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.8'
+      
+      - name: Check changed Deps files
+        uses: tj-actions/changed-files@v35
+        id: changed-files
+        with:
+          files: |
+            **/requirements.txt
 
       - name: Snyk scan for Python dependencies
+        if: steps.changed-files.outputs.any_changed == 'true'
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
-          for file in $(find . -name "requirements.txt"); do
+          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
             python3 -m pip install -r $file
             snyk test --command=python3 --package-manager=pip --file=$file -d --skip-unresolved 
           done
