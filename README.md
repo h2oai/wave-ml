@@ -1,5 +1,7 @@
 ## H2O Wave ML
 
+Attention! This repository is deprecated, unmaintained, and will get no further updates!
+
 <img src="assets/logo.png" alt="logo">
 
 ### Automatic Machine Learning (AutoML) for Wave Apps
